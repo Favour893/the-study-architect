@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// The Study Architect: all app data lives under users/{uid}/...
+// Only the signed-in user with matching uid may read or write their subtree.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/{document=**} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
