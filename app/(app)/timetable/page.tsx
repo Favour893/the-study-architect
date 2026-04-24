@@ -33,6 +33,13 @@ type Slot = {
   label: string;
 };
 
+type MobileBlock = {
+  day: string;
+  slotKey: string;
+  label: string;
+  entry: TimetableEntry;
+};
+
 function padHour(hour: number) {
   return String(hour).padStart(2, "0");
 }
@@ -593,6 +600,32 @@ export default function TimetablePage() {
     });
   }
 
+  const mobileBlocks = useMemo(() => {
+    const blocks: MobileBlock[] = [];
+    for (const [entryKey, entry] of Object.entries(entries)) {
+      const [day, slotKey] = entryKey.split("-");
+      if (!day || !slotKey) {
+        continue;
+      }
+      const hour = parseHour(slotKey);
+      const duration = Math.max(1, entry.durationHours);
+      const endLabel = hour === null ? "" : hourToLabel(Math.min(23, hour + duration - 1));
+      blocks.push({
+        day,
+        slotKey,
+        label: `${hourToLabel(hour ?? 7)}${endLabel ? ` - ${endLabel}` : ""}`,
+        entry,
+      });
+    }
+    return blocks.sort((a, b) => {
+      const dayDiff = days.indexOf(a.day) - days.indexOf(b.day);
+      if (dayDiff !== 0) {
+        return dayDiff;
+      }
+      return a.slotKey.localeCompare(b.slotKey);
+    });
+  }, [entries]);
+
   return (
     <div className="space-y-3">
       <header className="space-y-1">
@@ -633,7 +666,30 @@ export default function TimetablePage() {
       </div>
       {timeError ? <p className="text-sm text-amber-700">{timeError}</p> : null}
 
-      <div className="overflow-x-auto rounded-xl border border-app-border bg-panel">
+      <div className="space-y-2 md:hidden">
+        {mobileBlocks.length === 0 ? (
+          <p className="rounded-xl border border-app-border bg-panel px-3 py-2 text-sm text-app-subtle">
+            No classes yet. Tap a slot on desktop/tablet to start building your week.
+          </p>
+        ) : (
+          mobileBlocks.map((block) => (
+            <button
+              key={`${block.day}-${block.slotKey}`}
+              type="button"
+              onClick={() => openEditor(block.day, block.slotKey)}
+              className="w-full rounded-xl border border-app-border bg-panel px-3 py-2 text-left"
+            >
+              <p className="text-xs text-app-subtle">
+                {block.day} - {block.label}
+              </p>
+              <p className="text-sm font-medium text-app-fg">{block.entry.courseName || "Class block"}</p>
+              {block.entry.location ? <p className="text-xs text-app-subtle">{block.entry.location}</p> : null}
+            </button>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-xl border border-app-border bg-panel md:block">
         <table className="min-w-[760px] w-full border-collapse">
           <thead>
             <tr>

@@ -1,6 +1,7 @@
 "use client";
 
 import { signOutUser } from "@/lib/firebase/auth";
+import { BookOpen, CalendarDays, Clock3, Gauge, Sigma } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { useSemester } from "@/providers/semester-provider";
 import { BottomNav } from "@/components/layout/bottom-nav";
@@ -11,11 +12,11 @@ type AppShellProps = {
 };
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Pulse" },
-  { href: "/courses", label: "Courses" },
-  { href: "/timetable", label: "Timetable" },
-  { href: "/calculator", label: "Grade Calculator" },
-  { href: "/onboarding", label: "Semester" },
+  { href: "/dashboard", label: "Pulse", icon: Gauge },
+  { href: "/courses", label: "Courses", icon: BookOpen },
+  { href: "/timetable", label: "Timetable", icon: Clock3 },
+  { href: "/calculator", label: "Grade Calculator", icon: Sigma },
+  { href: "/onboarding", label: "Semester", icon: CalendarDays },
 ];
 
 export function AppShell({ children }: AppShellProps) {
@@ -23,11 +24,11 @@ export function AppShell({ children }: AppShellProps) {
   const { semesters, activeSemesterId, isLoading: semesterLoading, setActiveSemester } = useSemester();
 
   return (
-    <div className="min-h-screen bg-app">
-      <div className="mx-auto flex min-h-screen w-full max-w-6xl">
+    <div className="h-dvh bg-app">
+      <div className="mx-auto flex h-full w-full max-w-6xl">
         <SidebarNav items={navItems} />
-        <main className="flex w-full flex-1 flex-col pb-20 md:pb-0">
-          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-app-border bg-app/80 px-4 backdrop-blur md:px-8">
+        <main className="flex h-full min-h-0 w-full flex-1 flex-col">
+          <header className="z-10 flex h-16 shrink-0 items-center justify-between border-b border-app-border bg-app/80 px-4 backdrop-blur md:px-8">
             <div>
               <p className="text-sm text-app-subtle">The Study Architect</p>
               <h1 className="text-base font-medium text-app-fg">Keep it simple. Keep it moving.</h1>
@@ -61,7 +62,9 @@ export function AppShell({ children }: AppShellProps) {
               </button>
             </div>
           </header>
-          <section className="flex-1 px-4 py-6 md:px-8">{children}</section>
+          <section className="min-h-0 flex-1 overflow-y-auto px-4 py-6 pb-24 md:px-8 md:pb-6">
+            {children}
+          </section>
         </main>
       </div>
       <BottomNav items={navItems} />

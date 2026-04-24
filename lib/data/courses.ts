@@ -1,4 +1,4 @@
-import { addDoc, collection, getDocs, orderBy, query, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
 import { getDb } from "@/lib/firebase/db";
 import { semesterCoursesPath } from "@/lib/data/paths";
 import type { Course } from "@/lib/types/domain";
@@ -18,7 +18,7 @@ export async function listCourses(uid: string, semesterId: string) {
 export async function createCourse(
   uid: string,
   semesterId: string,
-  payload: { title: string; code?: string; lecturerName?: string; location?: string },
+  payload: { title: string; code?: string; lecturerName?: string },
 ) {
   const db = getDb();
   const ref = collection(db, semesterCoursesPath(uid, semesterId));
@@ -26,11 +26,25 @@ export async function createCourse(
     title: payload.title.trim(),
     code: payload.code?.trim() || "",
     lecturerName: payload.lecturerName?.trim() || "",
-    location: payload.location?.trim() || "",
     topicCount: 0,
     latestTopicStatus: "pending",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
   return courseRef.id;
+}
+
+export async function updateCourse(
+  uid: string,
+  semesterId: string,
+  courseId: string,
+  payload: { title: string; code?: string; lecturerName?: string },
+) {
+  const db = getDb();
+  await updateDoc(doc(db, `${semesterCoursesPath(uid, semesterId)}/${courseId}`), {
+    title: payload.title.trim(),
+    code: payload.code?.trim() || "",
+    lecturerName: payload.lecturerName?.trim() || "",
+    updatedAt: serverTimestamp(),
+  });
 }

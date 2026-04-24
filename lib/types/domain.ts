@@ -37,6 +37,8 @@ export type Topic = {
   id: string;
   title: string;
   taughtInClass: boolean;
+  learningStage?: "pending" | "taught" | "mastered";
+  notes?: string;
   priorityScore: number;
   aiQueueRank?: number;
   createdAt?: unknown;

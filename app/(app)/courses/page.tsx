@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { CourseCard } from "@/components/courses/course-card";
 import { CourseForm } from "@/components/courses/course-form";
-import { createCourse, listCourses } from "@/lib/data/courses";
-import { createTopic, listTopics, setTopicTaughtState } from "@/lib/data/topics";
-import type { Course, Topic } from "@/lib/types/domain";
+import { createCourse, listCourses, updateCourse } from "@/lib/data/courses";
+import { createTopic } from "@/lib/data/topics";
+import type { Course } from "@/lib/types/domain";
 import { useAuth } from "@/providers/auth-provider";
 import { useSemester } from "@/providers/semester-provider";
 import { useToast } from "@/providers/toast-provider";
@@ -15,21 +16,13 @@ export default function CoursesPage() {
   const { pushToast } = useToast();
   const { activeSemesterId, isLoading: semesterLoading } = useSemester();
   const [courses, setCourses] = useState<Course[]>([]);
-  const [topicsByCourse, setTopicsByCourse] = useState<Record<string, Topic[]>>({});
+  const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   async function loadCourses(uid: string, semesterId: string) {
     const nextCourses = await listCourses(uid, semesterId);
     setCourses(nextCourses);
-
-    const topicEntries = await Promise.all(
-      nextCourses.map(async (course) => {
-        const topics = await listTopics(uid, semesterId, course.id);
-        return [course.id, topics] as const;
-      }),
-    );
-    setTopicsByCourse(Object.fromEntries(topicEntries));
   }
 
   useEffect(() => {
@@ -51,7 +44,6 @@ export default function CoursesPage() {
         if (!activeSemesterId) {
           if (isMounted) {
             setCourses([]);
-            setTopicsByCourse({});
           }
           return;
         }
@@ -92,29 +84,39 @@ export default function CoursesPage() {
     }
   }
 
-  async function handleAddTopic(courseId: string, title: string) {
+  async function handleSaveCourseEdits(
+    courseId: string,
+    payload: { title: string; code?: string; lecturerName?: string },
+  ) {
     if (!user || !activeSemesterId) {
       return;
     }
-
     try {
-      await createTopic(user.uid, activeSemesterId, courseId, { title });
+      await updateCourse(user.uid, activeSemesterId, courseId, payload);
       await loadCourses(user.uid, activeSemesterId);
+      setEditingCourseId(null);
+      pushToast("Course updated.");
     } catch {
-      pushToast("Could not add topic. Try again.", "error");
+      pushToast("Could not update course. Try again.", "error");
     }
   }
 
-  async function handleToggleTaught(courseId: string, topicId: string, taughtInClass: boolean) {
+  async function handleCreateSampleCourse() {
     if (!user || !activeSemesterId) {
       return;
     }
-
     try {
-      await setTopicTaughtState(user.uid, activeSemesterId, courseId, topicId, taughtInClass);
+      const courseId = await createCourse(user.uid, activeSemesterId, {
+        title: "Engineering Mathematics",
+        code: "MTH 201",
+        lecturerName: "Dr. Adaobi",
+      });
+      await createTopic(user.uid, activeSemesterId, courseId, { title: "Differential Equations" });
+      await createTopic(user.uid, activeSemesterId, courseId, { title: "Laplace Transform" });
       await loadCourses(user.uid, activeSemesterId);
+      pushToast("Sample course created.");
     } catch {
-      pushToast("Could not update topic. Try again.", "error");
+      pushToast("Could not create sample course. Try again.", "error");
     }
   }
 
@@ -141,7 +143,17 @@ export default function CoursesPage() {
 
       {courses.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-app-border bg-panel p-8 text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-app-muted">
+            <Sparkles className="h-6 w-6 text-app-subtle" />
+          </div>
           <p className="text-sm text-app-subtle">No courses yet. Add your first course to begin.</p>
+          <button
+            type="button"
+            onClick={() => void handleCreateSampleCourse()}
+            className="mt-3 rounded-lg border border-app-border bg-white px-3 py-2 text-sm font-medium text-app-fg hover:bg-app-muted"
+          >
+            Add sample course
+          </button>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
@@ -149,9 +161,10 @@ export default function CoursesPage() {
             <CourseCard
               key={course.id}
               course={course}
-              topics={topicsByCourse[course.id] ?? []}
-              onAddTopic={handleAddTopic}
-              onToggleTaught={handleToggleTaught}
+              isEditing={editingCourseId === course.id}
+              onStartEditing={setEditingCourseId}
+              onCancelEditing={() => setEditingCourseId(null)}
+              onSaveEdits={handleSaveCourseEdits}
             />
           ))}
         </div>

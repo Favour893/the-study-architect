@@ -7,6 +7,32 @@ type TopicPayload = {
   title: string;
 };
 
+export type TopicLearningStage = "pending" | "taught" | "mastered";
+
+function normalizeLearningStage(topic: Topic): TopicLearningStage {
+  if (
+    topic.learningStage === "pending" ||
+    topic.learningStage === "taught" ||
+    topic.learningStage === "mastered"
+  ) {
+    return topic.learningStage;
+  }
+  if (topic.learningStage === "studied") {
+    return "taught";
+  }
+  return topic.taughtInClass ? "taught" : "pending";
+}
+
+function stagePriorityScore(stage: TopicLearningStage) {
+  if (stage === "taught") {
+    return 100;
+  }
+  if (stage === "mastered") {
+    return 20;
+  }
+  return 10;
+}
+
 export async function listTopics(uid: string, semesterId: string, courseId: string) {
   const db = getDb();
   const topicsRef = collection(db, semesterCourseTopicsPath(uid, semesterId, courseId));
@@ -17,7 +43,16 @@ export async function listTopics(uid: string, semesterId: string, courseId: stri
     ...topicDoc.data(),
   })) as Topic[];
 
-  return topics.sort((a, b) => {
+  const normalized = topics.map((topic) => {
+    const learningStage = normalizeLearningStage(topic);
+    return {
+      ...topic,
+      learningStage,
+      taughtInClass: learningStage !== "pending",
+    };
+  });
+
+  return normalized.sort((a, b) => {
     if (a.taughtInClass !== b.taughtInClass) {
       return a.taughtInClass ? -1 : 1;
     }
@@ -36,12 +71,29 @@ export async function createTopic(
   await addDoc(topicsRef, {
     title: payload.title.trim(),
     taughtInClass: false,
+    learningStage: "pending",
+    notes: "",
     priorityScore: 10,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
 
   await syncCourseTopicMetrics(uid, semesterId, courseId);
+}
+
+export async function setTopicNotes(
+  uid: string,
+  semesterId: string,
+  courseId: string,
+  topicId: string,
+  notes: string,
+) {
+  const db = getDb();
+  const topicRef = doc(db, `${semesterCourseTopicsPath(uid, semesterId, courseId)}/${topicId}`);
+  await updateDoc(topicRef, {
+    notes: notes.trim(),
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export async function setTopicTaughtState(
@@ -51,11 +103,23 @@ export async function setTopicTaughtState(
   topicId: string,
   taughtInClass: boolean,
 ) {
+  const learningStage: TopicLearningStage = taughtInClass ? "taught" : "pending";
+  await setTopicLearningStage(uid, semesterId, courseId, topicId, learningStage);
+}
+
+export async function setTopicLearningStage(
+  uid: string,
+  semesterId: string,
+  courseId: string,
+  topicId: string,
+  learningStage: TopicLearningStage,
+) {
   const db = getDb();
   const topicRef = doc(db, `${semesterCourseTopicsPath(uid, semesterId, courseId)}/${topicId}`);
   await updateDoc(topicRef, {
-    taughtInClass,
-    priorityScore: taughtInClass ? 100 : 10,
+    taughtInClass: learningStage !== "pending",
+    learningStage,
+    priorityScore: stagePriorityScore(learningStage),
     updatedAt: serverTimestamp(),
   });
 
@@ -67,9 +131,20 @@ async function syncCourseTopicMetrics(uid: string, semesterId: string, courseId:
   const topicsRef = collection(db, semesterCourseTopicsPath(uid, semesterId, courseId));
   const topicsSnapshot = await getDocs(topicsRef);
   const topicCount = topicsSnapshot.size;
-  const hasTaughtTopic = topicsSnapshot.docs.some(
-    (topicDoc) => Boolean(topicDoc.data().taughtInClass),
-  );
+  const hasTaughtTopic = topicsSnapshot.docs.some((topicDoc) => {
+    const data = topicDoc.data() as Topic;
+    const stage =
+      data.learningStage === "pending" ||
+      data.learningStage === "taught" ||
+      data.learningStage === "mastered"
+        ? data.learningStage
+        : data.learningStage === "studied"
+          ? "taught"
+        : data.taughtInClass
+          ? "taught"
+          : "pending";
+    return stage !== "pending";
+  });
 
   const courseRef = doc(db, `${semesterCoursesPath(uid, semesterId)}/${courseId}`);
   await updateDoc(courseRef, {

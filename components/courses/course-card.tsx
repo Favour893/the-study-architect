@@ -1,29 +1,47 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import type { Course, Topic } from "@/lib/types/domain";
+import type { Course } from "@/lib/types/domain";
 
 type CourseCardProps = {
   course: Course;
-  topics: Topic[];
-  onAddTopic: (courseId: string, title: string) => Promise<void>;
-  onToggleTaught: (courseId: string, topicId: string, taughtInClass: boolean) => Promise<void>;
+  isEditing: boolean;
+  onStartEditing: (courseId: string) => void;
+  onCancelEditing: () => void;
+  onSaveEdits: (
+    courseId: string,
+    payload: { title: string; code?: string; lecturerName?: string },
+  ) => Promise<void>;
 };
 
-export function CourseCard({ course, topics, onAddTopic, onToggleTaught }: CourseCardProps) {
-  const [topicTitle, setTopicTitle] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export function CourseCard({
+  course,
+  isEditing,
+  onStartEditing,
+  onCancelEditing,
+  onSaveEdits,
+}: CourseCardProps) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [title, setTitle] = useState(course.title);
+  const [code, setCode] = useState(course.code ?? "");
+  const [lecturerName, setLecturerName] = useState(course.lecturerName ?? "");
 
-  async function handleAddTopic(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!topicTitle.trim()) {
+  async function handleSave() {
+    if (!title.trim()) {
       return;
     }
+    setIsSaving(true);
+    await onSaveEdits(course.id, { title, code, lecturerName });
+    setIsSaving(false);
+    onCancelEditing();
+  }
 
-    setIsSubmitting(true);
-    await onAddTopic(course.id, topicTitle);
-    setTopicTitle("");
-    setIsSubmitting(false);
+  function handleCancel() {
+    setTitle(course.title);
+    setCode(course.code ?? "");
+    setLecturerName(course.lecturerName ?? "");
+    onCancelEditing();
   }
 
   return (
@@ -36,65 +54,75 @@ export function CourseCard({ course, topics, onAddTopic, onToggleTaught }: Cours
             {course.lecturerName ? (
               <p className="text-xs text-app-subtle">Lecturer: {course.lecturerName}</p>
             ) : null}
-            {course.location ? (
-              <p className="text-xs text-app-subtle">Location: {course.location}</p>
-            ) : null}
           </div>
         </div>
         <span className="rounded-full bg-app-muted px-2.5 py-1 text-xs text-app-subtle">
           {course.topicCount} topics
         </span>
       </div>
+
+      {isEditing ? (
+        <div className="space-y-2 rounded-xl border border-app-border bg-white p-3">
+          <input
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            className="w-full rounded-md border border-app-border px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
+            placeholder="Course title"
+          />
+          <div className="grid gap-2 sm:grid-cols-2">
+            <input
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              className="w-full rounded-md border border-app-border px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
+              placeholder="Course code"
+            />
+            <input
+              value={lecturerName}
+              onChange={(event) => setLecturerName(event.target.value)}
+              className="w-full rounded-md border border-app-border px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
+              placeholder="Lecturer"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="rounded-md border border-app-border bg-white px-3 py-1.5 text-sm text-app-fg hover:bg-app-muted"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={isSaving}
+              onClick={() => void handleSave()}
+              className="rounded-md bg-app-fg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
+            >
+              {isSaving ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <p className="mt-4 text-sm text-app-subtle">
         Latest status: <span className="font-medium text-app-fg">{course.latestTopicStatus}</span>
       </p>
-
-      <form onSubmit={handleAddTopic} className="flex gap-2">
-        <input
-          value={topicTitle}
-          onChange={(event) => setTopicTitle(event.target.value)}
-          className="w-full rounded-lg border border-app-border bg-white px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
-          placeholder="Add topic"
-        />
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-lg border border-app-border bg-white px-3 py-2 text-sm font-medium text-app-fg hover:bg-app-muted disabled:opacity-60"
+      <div className="flex gap-2">
+        <Link
+          href={`/courses/${course.id}`}
+          className="inline-flex rounded-md border border-app-border bg-white px-3 py-1.5 text-sm text-app-fg hover:bg-app-muted"
         >
-          Add
-        </button>
-      </form>
-
-      {topics.length === 0 ? (
-        <p className="text-sm text-app-subtle">No topics yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {topics.map((topic) => (
-            <li
-              key={topic.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-app-border bg-white px-3 py-2"
-            >
-              <div>
-                <p className="text-sm text-app-fg">{topic.title}</p>
-                <p className="text-xs text-app-subtle">
-                  {topic.taughtInClass ? "Live Sync priority: top" : "Live Sync priority: normal"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void onToggleTaught(course.id, topic.id, !topic.taughtInClass)}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium ${
-                  topic.taughtInClass
-                    ? "bg-app-fg text-white"
-                    : "border border-app-border bg-white text-app-fg"
-                }`}
-              >
-                {topic.taughtInClass ? "Taught in class" : "Mark taught"}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+          Open syllabus
+        </Link>
+        {!isEditing ? (
+          <button
+            type="button"
+            onClick={() => onStartEditing(course.id)}
+            className="inline-flex rounded-md border border-app-border bg-white px-3 py-1.5 text-sm text-app-fg hover:bg-app-muted"
+          >
+            Edit course
+          </button>
+        ) : null}
+      </div>
     </article>
   );
 }

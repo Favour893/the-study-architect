@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ComponentType } from "react";
 
 export type NavItem = {
   href: string;
   label: string;
+  icon?: ComponentType<{ className?: string }>;
 };
 
 type SidebarNavProps = {
@@ -21,14 +23,16 @@ export function SidebarNav({ items }: SidebarNavProps) {
       <nav className="space-y-1">
         {items.map((item) => {
           const isActive = pathname.startsWith(item.href);
+          const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`block rounded-lg px-3 py-2 text-sm transition ${
+              className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-base transition ${
                 isActive ? "bg-app-muted font-medium text-app-fg" : "text-app-subtle hover:bg-app-muted"
               }`}
             >
+              {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
               {item.label}
             </Link>
           );

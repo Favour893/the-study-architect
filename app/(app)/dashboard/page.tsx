@@ -5,6 +5,7 @@ import { listCourses } from "@/lib/data/courses";
 import { listTopics } from "@/lib/data/topics";
 import { getClientAuth } from "@/lib/firebase/auth";
 import { TIMETABLE_LEGACY_STORAGE_KEY, timetableStorageKeyForUserSemester } from "@/lib/timetable-storage";
+import type { Topic } from "@/lib/types/domain";
 import { useAuth } from "@/providers/auth-provider";
 import { useSemester } from "@/providers/semester-provider";
 
@@ -40,6 +41,13 @@ type CurrentClass = {
 type PriorityTopic = {
   courseName: string;
   topicTitle: string;
+};
+
+type MissionTopic = {
+  courseName: string;
+  topicTitle: string;
+  notes: string;
+  isFromNextClass: boolean;
 };
 
 function formatHour(hour: number) {
@@ -134,7 +142,8 @@ export default function DashboardPage() {
   const [currentClass, setCurrentClass] = useState<CurrentClass | null>(null);
   const [nextClass, setNextClass] = useState<CurrentClass | null>(null);
   const [priorityTopic, setPriorityTopic] = useState<PriorityTopic | null>(null);
-  const [aiHint, setAiHint] = useState<string | null>(null);
+  const [studyMission, setStudyMission] = useState<string | null>(null);
+  const [missionTopics, setMissionTopics] = useState<MissionTopic[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
@@ -182,7 +191,11 @@ export default function DashboardPage() {
       for (const course of courses) {
         const topics = await listTopics(user.uid, semesterId, course.id);
         for (const topic of topics) {
-          const score = (topic.taughtInClass ? 1000 : 0) + (topic.priorityScore ?? 0);
+          const stage = topic.learningStage === "mastered" ? "mastered" : topic.taughtInClass ? "taught" : "pending";
+          if (stage !== "taught") {
+            continue;
+          }
+          const score = (topic.priorityScore ?? 0) + (course.latestTopicStatus === "taught" ? 200 : 0);
           if (!best || score > best.score) {
             best = {
               score,
@@ -245,7 +258,7 @@ export default function DashboardPage() {
       return `Your next class starts at ${formatHour(nextClass.startHour)}. Review key notes before it begins.`;
     }
     if (priorityTopic) {
-      return `Top study topic right now: ${priorityTopic.topicTitle} (${priorityTopic.courseName}).`;
+      return `Most urgent taught topic: ${priorityTopic.topicTitle} (${priorityTopic.courseName}). Start a focused 30-minute study block now.`;
     }
     return "No active or upcoming class detected for today. Use this window for revision.";
   }, [currentClass, nextClass, priorityTopic]);
@@ -279,6 +292,19 @@ export default function DashboardPage() {
     [semesters, activeSemesterId],
   );
 
+  function topicStatus(topic: Topic): "pending" | "taught" | "mastered" {
+    if (topic.learningStage === "mastered") {
+      return "mastered";
+    }
+    if (topic.learningStage === "taught") {
+      return "taught";
+    }
+    if (topic.taughtInClass) {
+      return "taught";
+    }
+    return "pending";
+  }
+
   async function requestAiStudyHint() {
     setAiError(null);
     const auth = getClientAuth();
@@ -296,29 +322,74 @@ export default function DashboardPage() {
       return;
     }
 
+    if (!user || !activeSemesterId) {
+      setAiError("Choose an active semester first.");
+      return;
+    }
+
     setAiLoading(true);
     try {
-      const res = await fetch("/api/pulse-hint", {
+      const courses = await listCourses(user.uid, activeSemesterId);
+      const nextClassName = nextClass?.courseName.trim().toLowerCase() ?? "";
+      const taughtTopics: MissionTopic[] = [];
+
+      for (const course of courses) {
+        const topics = await listTopics(user.uid, activeSemesterId, course.id);
+        for (const topic of topics) {
+          if (topicStatus(topic) !== "taught") {
+            continue;
+          }
+          taughtTopics.push({
+            courseName: course.title,
+            topicTitle: topic.title,
+            notes: topic.notes?.trim() ?? "",
+            isFromNextClass:
+              nextClassName.length > 0 && course.title.trim().toLowerCase() === nextClassName,
+          });
+        }
+      }
+
+      if (taughtTopics.length === 0) {
+        setStudyMission(
+          "No taught topics are waiting. Mark a topic as Taught in Class on a course syllabus to get a mission.",
+        );
+        setMissionTopics([]);
+        return;
+      }
+
+      const ranked = taughtTopics
+        .map((topic, index) => ({
+          topic,
+          score: (topic.isFromNextClass ? 1000 : 0) + (topic.notes ? 25 : 0) - index,
+        }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3)
+        .map((item) => item.topic);
+
+      setMissionTopics(ranked);
+
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           idToken,
+          topics: ranked,
           context: {
             pulseTitle,
             pulseBody,
             semesterName: activeSemester?.name,
-            progressPercent: semesterProgress,
+            nextClass: nextClass?.courseName ?? null,
           },
         }),
       });
-      const data = (await res.json()) as { hint?: string; error?: string };
+      const data = (await res.json()) as { mission?: string; error?: string };
       if (!res.ok) {
-        setAiHint(null);
+        setStudyMission(null);
         setAiError(data.error ?? "Could not get a suggestion.");
         return;
       }
-      if (typeof data.hint === "string") {
-        setAiHint(data.hint);
+      if (typeof data.mission === "string") {
+        setStudyMission(data.mission);
       } else {
         setAiError("Unexpected response from the assistant.");
       }
@@ -359,10 +430,24 @@ export default function DashboardPage() {
             {aiLoading ? "Thinking…" : "Get a tailored next step"}
           </button>
           {aiError ? <p className="text-sm text-red-700">{aiError}</p> : null}
-          {aiHint ? (
-            <p className="rounded-lg border border-app-border bg-app-muted/40 px-3 py-2 text-sm leading-relaxed text-app-fg">
-              {aiHint}
-            </p>
+          {missionTopics.length > 0 ? (
+            <div className="rounded-lg border border-app-border bg-white p-3">
+              <p className="text-xs uppercase tracking-wide text-app-subtle">Top taught topics</p>
+              <ul className="mt-1 space-y-1">
+                {missionTopics.map((topic) => (
+                  <li key={`${topic.courseName}-${topic.topicTitle}`} className="text-sm text-app-fg">
+                    {topic.topicTitle} ({topic.courseName})
+                    {topic.isFromNextClass ? " - next class" : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {studyMission ? (
+            <div className="rounded-xl border border-app-border bg-gradient-to-br from-white to-app-muted/40 p-4 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-app-subtle">Study mission</p>
+              <p className="mt-1 text-sm leading-relaxed text-app-fg">{studyMission}</p>
+            </div>
           ) : null}
         </div>
       </section>
@@ -380,7 +465,7 @@ export default function DashboardPage() {
           <p className="mt-1 text-base font-medium text-app-fg">{nextClassLabel}</p>
           {priorityTopic ? (
             <p className="mt-1 text-sm text-app-subtle">
-              Priority topic: {priorityTopic.topicTitle} ({priorityTopic.courseName})
+              Priority topic: {priorityTopic.topicTitle} ({priorityTopic.courseName}) - taught
             </p>
           ) : null}
         </article>
