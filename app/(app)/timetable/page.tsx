@@ -593,7 +593,9 @@ export default function TimetablePage() {
             }`}
             aria-label={`Add class for ${day} at ${slot.label}`}
           >
-            <span className="text-lg leading-none transition group-hover:text-app-fg">+</span>
+            <span className="text-lg leading-none opacity-0 transition group-hover:opacity-100 group-hover:text-app-fg group-focus-visible:opacity-100">
+              +
+            </span>
           </button>
         </td>
       );

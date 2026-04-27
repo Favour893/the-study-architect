@@ -6,6 +6,31 @@ import { getFirebaseConfigStatus, hasFirebaseConfig } from "@/lib/firebase/clien
 
 type AuthMode = "sign-in" | "create-account";
 
+function humanizeAuthError(error: unknown) {
+  const code =
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof (error as { code?: unknown }).code === "string"
+      ? (error as { code: string }).code
+      : "";
+
+  if (code === "auth/invalid-credential") {
+    return "Invalid credential. Check Firebase web config values and Google provider setup for this deployment.";
+  }
+  if (code === "auth/unauthorized-domain") {
+    return "This domain is not authorized in Firebase Auth. Add your Vercel domain in Firebase Authentication settings.";
+  }
+  if (code === "auth/popup-closed-by-user") {
+    return "Google sign-in popup was closed before completion. Try again.";
+  }
+  if (code === "auth/network-request-failed") {
+    return "Network request failed. Check your internet connection and try again.";
+  }
+
+  return error instanceof Error ? error.message : "Unable to continue. Try again.";
+}
+
 export function AuthForm() {
   const { missingConfig } = getFirebaseConfigStatus();
 
@@ -27,9 +52,7 @@ export function AuthForm() {
         await signInWithEmail(email, password);
       }
     } catch (submitError) {
-      setError(
-        submitError instanceof Error ? submitError.message : "Unable to continue. Try again.",
-      );
+      setError(humanizeAuthError(submitError));
     } finally {
       setIsSubmitting(false);
     }
@@ -41,7 +64,7 @@ export function AuthForm() {
     try {
       await signInWithGoogle();
     } catch (googleError) {
-      setError(googleError instanceof Error ? googleError.message : "Google sign-in failed.");
+      setError(humanizeAuthError(googleError));
     } finally {
       setIsSubmitting(false);
     }
