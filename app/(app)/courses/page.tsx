@@ -145,45 +145,49 @@ export default function CoursesPage() {
   }
 
   return (
-    <div className="space-y-4">
-      <header className="space-y-1">
-        <p className="text-sm text-app-subtle">Semester vault</p>
-        <h2 className="text-xl font-semibold text-app-fg">Course Cards</h2>
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <header className="shrink-0 space-y-0.5">
+        <p className="text-xs text-app-subtle">Semester vault</p>
+        <h2 className="text-lg font-semibold text-app-fg">Course Cards</h2>
       </header>
 
-      <CourseForm onCreate={handleCreateCourse} />
+      <div className="shrink-0">
+        <CourseForm onCreate={handleCreateCourse} />
+      </div>
 
       {error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
 
-      {courses.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-app-border bg-panel p-8 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-app-muted">
-            <Sparkles className="h-6 w-6 text-app-subtle" />
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        {courses.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-app-border bg-panel p-6 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-app-muted">
+              <Sparkles className="h-6 w-6 text-app-subtle" />
+            </div>
+            <p className="text-sm text-app-subtle">No courses yet. Add your first course to begin.</p>
+            <button
+              type="button"
+              onClick={() => void handleCreateSampleCourse()}
+              className="mt-3 rounded-lg border border-app-border bg-white px-3 py-2 text-sm font-medium text-app-fg hover:bg-app-muted"
+            >
+              Add sample course
+            </button>
           </div>
-          <p className="text-sm text-app-subtle">No courses yet. Add your first course to begin.</p>
-          <button
-            type="button"
-            onClick={() => void handleCreateSampleCourse()}
-            className="mt-3 rounded-lg border border-app-border bg-white px-3 py-2 text-sm font-medium text-app-fg hover:bg-app-muted"
-          >
-            Add sample course
-          </button>
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {courses.map((course) => (
-            <CourseCard
-              key={course.id}
-              course={course}
-              isEditing={editingCourseId === course.id}
-              onStartEditing={setEditingCourseId}
-              onCancelEditing={() => setEditingCourseId(null)}
-              onSaveEdits={handleSaveCourseEdits}
-              onDeleteCourse={handleDeleteCourse}
-            />
-          ))}
-        </div>
-      )}
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {courses.map((course) => (
+              <CourseCard
+                key={course.id}
+                course={course}
+                isEditing={editingCourseId === course.id}
+                onStartEditing={setEditingCourseId}
+                onCancelEditing={() => setEditingCourseId(null)}
+                onSaveEdits={handleSaveCourseEdits}
+                onDeleteCourse={handleDeleteCourse}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

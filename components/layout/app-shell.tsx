@@ -25,15 +25,15 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="h-dvh bg-app">
-      <div className="mx-auto flex h-full w-full max-w-6xl">
+      <div className="flex h-full w-full">
         <SidebarNav items={navItems} />
-        <main className="flex h-full min-h-0 w-full flex-1 flex-col">
-          <header className="z-10 flex h-16 shrink-0 items-center justify-between border-b border-app-border bg-app/80 px-4 backdrop-blur md:px-8">
-            <div>
-              <p className="text-sm text-app-subtle">The Study Architect</p>
-              <h1 className="text-base font-medium text-app-fg">Keep it simple. Keep it moving.</h1>
+        <main className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col">
+          <header className="z-10 flex h-14 min-w-0 shrink-0 items-center justify-between gap-2 border-b border-app-border bg-app/80 px-3 backdrop-blur md:px-6">
+            <div className="min-w-0 pr-2">
+              <p className="text-xs text-app-subtle">The Study Architect</p>
+              <h1 className="truncate text-sm font-medium text-app-fg">Keep it simple. Keep it moving.</h1>
             </div>
-            <div className="flex min-w-0 flex-shrink-0 items-center gap-2 sm:gap-3">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               {semesters.length > 0 ? (
                 <label className="flex min-w-0 max-w-[44vw] items-center gap-1.5 sm:max-w-[220px]">
                   <span className="hidden text-xs text-app-subtle sm:inline">Semester</span>
@@ -52,17 +52,17 @@ export function AppShell({ children }: AppShellProps) {
                   </select>
                 </label>
               ) : null}
-              <p className="hidden truncate text-sm text-app-subtle md:block">{user?.email}</p>
+              <p className="hidden truncate text-xs text-app-subtle md:block">{user?.email}</p>
               <button
                 type="button"
                 onClick={() => void signOutUser()}
-                className="rounded-md border border-app-border bg-white px-3 py-1.5 text-sm text-app-fg hover:bg-app-muted"
+                className="rounded-md border border-app-border bg-white px-2.5 py-1 text-xs text-app-fg hover:bg-app-muted"
               >
                 Sign out
               </button>
             </div>
           </header>
-          <section className="min-h-0 flex-1 overflow-y-auto px-4 py-6 pb-24 md:px-8 md:pb-6">
+          <section className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-auto px-3 py-4 pb-24 md:px-6 md:pb-4">
             {children}
           </section>
         </main>

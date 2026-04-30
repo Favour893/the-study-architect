@@ -33,7 +33,7 @@ export function CourseForm({ onCreate }: CourseFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid gap-3 rounded-2xl border border-app-border bg-panel p-4 md:grid-cols-4"
+      className="grid gap-2 rounded-2xl border border-app-border bg-panel p-3 md:grid-cols-4"
     >
       <input
         value={title}

@@ -18,8 +18,8 @@ export function SidebarNav({ items }: SidebarNavProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden h-screen w-64 shrink-0 border-r border-app-border bg-panel px-4 py-6 md:block">
-      <p className="mb-8 px-2 text-sm font-medium uppercase tracking-wide text-app-subtle">TSA</p>
+    <aside className="hidden h-screen w-64 shrink-0 border-r border-app-border bg-panel px-3 py-4 md:block">
+      <p className="mb-6 px-2 text-xs font-medium uppercase tracking-wide text-app-subtle">TSA</p>
       <nav className="space-y-1">
         {items.map((item) => {
           const isActive = pathname.startsWith(item.href);
@@ -28,7 +28,7 @@ export function SidebarNav({ items }: SidebarNavProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2 rounded-lg px-3 py-2.5 text-base transition ${
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition ${
                 isActive ? "bg-app-muted font-medium text-app-fg" : "text-app-subtle hover:bg-app-muted"
               }`}
             >

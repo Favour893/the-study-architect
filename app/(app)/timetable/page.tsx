@@ -121,6 +121,14 @@ export default function TimetablePage() {
   const skipNextCloudSaveRef = useRef(false);
 
   const slots = useMemo(() => buildSlots(startHour, endHour), [startHour, endHour]);
+  const desktopTableMinWidth = useMemo(() => {
+    // Fit the default 07:00-19:00 range without horizontal scrolling on larger screens.
+    // If users add extra hours, allow horizontal scroll to preserve readable cells.
+    if (slots.length <= 12) {
+      return undefined;
+    }
+    return `${96 + slots.length * 96}px`;
+  }, [slots.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -333,6 +341,21 @@ export default function TimetablePage() {
       location: "",
       durationHours: 1,
     });
+  }
+
+  function clearEditorEntry() {
+    if (!editingKey) {
+      return;
+    }
+    setEntries((current) => {
+      if (!(editingKey in current)) {
+        return current;
+      }
+      const next = { ...current };
+      delete next[editingKey];
+      return next;
+    });
+    closeEditor();
   }
 
   function getRange(day: string, slotKey: string, durationHours: number) {
@@ -582,7 +605,11 @@ export default function TimetablePage() {
         const isActive = editingKey === `${day}-${slot.key}`;
         const isDragging = draggingKey === `${day}-${slot.key}`;
         return (
-          <td key={`${day}-${slot.key}`} colSpan={block.entry.durationHours} className="border-b border-app-border px-1.5 py-1.5">
+          <td
+            key={`${day}-${slot.key}`}
+            colSpan={block.entry.durationHours}
+            className="h-[52px] border-b border-app-border px-1.5 py-1.5"
+          >
             <button
               type="button"
               draggable
@@ -606,15 +633,17 @@ export default function TimetablePage() {
                 setDraggingKey(null);
               }}
               onClick={() => openEditor(day, slot.key)}
-              className={`w-full rounded-md border bg-white px-2.5 py-2 text-left transition hover:bg-app-muted ${
+              className={`h-[44px] w-full overflow-hidden rounded-md border bg-white px-2.5 py-2 text-left transition hover:bg-app-muted ${
                 isActive ? "border-app-accent ring-2 ring-app-accent/25" : "border-app-border"
               } ${isDragging ? "opacity-50" : ""}`}
             >
-              <div className="space-y-0.5">
-                <p className="truncate text-sm font-medium text-app-fg">
+              <div className="flex h-full flex-col justify-center">
+                <p className="truncate text-sm font-medium leading-tight text-app-fg">
                   {block.entry.courseName || "Class block"}
                 </p>
-                <p className="truncate text-[11px] text-app-subtle">{block.entry.location || "No location yet"}</p>
+                {block.entry.location ? (
+                  <p className="truncate text-[11px] leading-tight text-app-subtle">{block.entry.location}</p>
+                ) : null}
               </div>
             </button>
           </td>
@@ -623,7 +652,7 @@ export default function TimetablePage() {
 
       const isActive = editingKey === `${day}-${slot.key}`;
       return (
-        <td key={`${day}-${slot.key}`} className="border-b border-app-border px-1.5 py-1.5">
+        <td key={`${day}-${slot.key}`} className="h-[52px] border-b border-app-border px-1.5 py-1.5">
           <button
             type="button"
             onDragOver={(event) => {
@@ -641,7 +670,7 @@ export default function TimetablePage() {
               setDraggingKey(null);
             }}
             onClick={() => openEditor(day, slot.key)}
-            className={`group flex h-[52px] w-full items-center justify-center rounded-md border border-dashed bg-white/70 text-app-subtle transition hover:border-app-accent hover:bg-app-muted ${
+            className={`group flex h-[44px] w-full items-center justify-center rounded-md border border-dashed bg-white/70 text-app-subtle transition hover:border-app-accent hover:bg-app-muted ${
               isActive ? "border-app-accent ring-2 ring-app-accent/25" : "border-app-border"
             }`}
             aria-label={`Add class for ${day} at ${slot.label}`}
@@ -759,16 +788,16 @@ export default function TimetablePage() {
       </div>
 
       <div className="hidden overflow-x-auto rounded-xl border border-app-border bg-panel md:block">
-        <table className="min-w-[760px] w-full border-collapse">
+        <table className="w-full table-fixed border-collapse" style={{ minWidth: desktopTableMinWidth }}>
           <thead>
             <tr>
-              <th className="sticky left-0 z-10 border-b border-app-border bg-app-muted px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-app-subtle">
+              <th className="sticky left-0 z-10 w-20 border-b border-app-border bg-app-muted px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-app-subtle">
                 Day
               </th>
               {slots.map((slot) => (
                 <th
                   key={slot.key}
-                  className="border-b border-app-border bg-app-muted px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-app-subtle"
+                  className="border-b border-app-border bg-app-muted px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-app-subtle"
                 >
                   {slot.label}
                 </th>
@@ -883,6 +912,15 @@ export default function TimetablePage() {
                 />
               </label>
               <div className="flex justify-end gap-2">
+                {editingKey && entries[editingKey] ? (
+                  <button
+                    type="button"
+                    onClick={clearEditorEntry}
+                    className="mr-auto rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"
+                  >
+                    Clear cell
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={closeEditor}
