@@ -1,32 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createCourse, listCourses } from "@/lib/data/courses";
+import { fetchTimetableFromFirestore, saveTimetableToFirestore } from "@/lib/data/timetable";
 import type { Course } from "@/lib/types/domain";
-import { TIMETABLE_LEGACY_STORAGE_KEY, timetableStorageKeyForUserSemester } from "@/lib/timetable-storage";
+import {
+  DEFAULT_TIMETABLE_END_HOUR,
+  DEFAULT_TIMETABLE_START_HOUR,
+  TIMETABLE_LEGACY_STORAGE_KEY,
+  parseTimetableStorage,
+  serializeTimetableStorage,
+  timetableStorageKeyForUserSemester,
+  type TimetableEntry,
+  type TimetableState,
+} from "@/lib/timetable-storage";
 import { useAuth } from "@/providers/auth-provider";
 import { useSemester } from "@/providers/semester-provider";
+import { useToast } from "@/providers/toast-provider";
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-const defaultStartHour = 7;
-const defaultEndHour = 19;
+const defaultStartHour = DEFAULT_TIMETABLE_START_HOUR;
+const defaultEndHour = DEFAULT_TIMETABLE_END_HOUR;
 const NEW_COURSE_VALUE = "__new_course__";
-
-type TimetableEntry = {
-  courseId: string;
-  courseName: string;
-  lecturerName: string;
-  location: string;
-  durationHours: number;
-};
-
-type TimetableState = Record<string, TimetableEntry>;
-
-type TimetableStorage = {
-  startHour: number;
-  endHour: number;
-  entries: TimetableState;
-};
 
 type Slot = {
   key: string;
@@ -39,6 +34,8 @@ type MobileBlock = {
   label: string;
   entry: TimetableEntry;
 };
+
+type CloudSyncState = "local" | "syncing" | "synced";
 
 function padHour(hour: number) {
   return String(hour).padStart(2, "0");
@@ -64,6 +61,10 @@ function buildSlots(startHour: number, endHour: number) {
 
 function isValidWindow(startHour: number, endHour: number) {
   return startHour >= 0 && endHour <= 24 && endHour > startHour;
+}
+
+function timetableSignature(startHour: number, endHour: number, entries: TimetableState) {
+  return JSON.stringify({ startHour, endHour, entries });
 }
 
 function isValidTimeSlot(value: string) {
@@ -92,56 +93,19 @@ function requiredEndHourForEntries(entries: TimetableState) {
   return Math.min(24, maxRequired);
 }
 
-function migrateRawEntries(rawEntries: Record<string, unknown>): TimetableState {
-  const migratedEntries: TimetableState = {};
-  for (const [entryKey, entryValue] of Object.entries(rawEntries)) {
-    if (typeof entryValue === "string") {
-      migratedEntries[entryKey] = {
-        courseId: "",
-        courseName: entryValue,
-        lecturerName: "",
-        location: "",
-        durationHours: 1,
-      };
-      continue;
-    }
-    if (entryValue && typeof entryValue === "object") {
-      const v = entryValue as Record<string, unknown>;
-      migratedEntries[entryKey] = {
-        courseId: typeof v.courseId === "string" ? v.courseId : "",
-        courseName: typeof v.courseName === "string" ? v.courseName : "",
-        lecturerName: typeof v.lecturerName === "string" ? v.lecturerName : "",
-        location: typeof v.location === "string" ? v.location : "",
-        durationHours: Math.max(1, Math.floor(Number(v.durationHours) || 1)),
-      };
-    }
-  }
-  return migratedEntries;
-}
-
-function parseTimetableStorage(raw: string): Pick<TimetableStorage, "startHour" | "endHour" | "entries"> | null {
-  try {
-    const parsed = JSON.parse(raw) as TimetableStorage;
-    const rawEntries = (parsed.entries ?? {}) as Record<string, unknown>;
-    return {
-      startHour: typeof parsed.startHour === "number" ? parsed.startHour : defaultStartHour,
-      endHour: typeof parsed.endHour === "number" ? parsed.endHour : defaultEndHour,
-      entries: migrateRawEntries(rawEntries),
-    };
-  } catch {
-    return null;
-  }
-}
 
 export default function TimetablePage() {
   const { user } = useAuth();
   const { activeSemesterId, isLoading: semesterLoading } = useSemester();
+  const { pushToast } = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [coursesError, setCoursesError] = useState<string | null>(null);
   const [timetableStorageReady, setTimetableStorageReady] = useState(false);
   const [startHour, setStartHour] = useState<number>(defaultStartHour);
   const [endHour, setEndHour] = useState<number>(defaultEndHour);
   const [entries, setEntries] = useState<TimetableState>({});
+  const [cloudSyncState, setCloudSyncState] = useState<CloudSyncState>("local");
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
 
   const [timeError, setTimeError] = useState<string | null>(null);
   const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -153,6 +117,8 @@ export default function TimetablePage() {
     location: "",
     durationHours: 1,
   });
+  const lastSyncedSignatureRef = useRef<string | null>(null);
+  const skipNextCloudSaveRef = useRef(false);
 
   const slots = useMemo(() => buildSlots(startHour, endHour), [startHour, endHour]);
 
@@ -167,6 +133,8 @@ export default function TimetablePage() {
         setStartHour(defaultStartHour);
         setEndHour(defaultEndHour);
         setEntries({});
+        setCloudSyncState("local");
+        setLastSyncedAt(null);
         setTimetableStorageReady(true);
         return;
       }
@@ -185,10 +153,16 @@ export default function TimetablePage() {
         setStartHour(parsed.startHour);
         setEndHour(parsed.endHour);
         setEntries(parsed.entries);
+        lastSyncedSignatureRef.current = timetableSignature(
+          parsed.startHour,
+          parsed.endHour,
+          parsed.entries,
+        );
       } else {
         setStartHour(defaultStartHour);
         setEndHour(defaultEndHour);
         setEntries({});
+        lastSyncedSignatureRef.current = timetableSignature(defaultStartHour, defaultEndHour, {});
       }
       setTimetableStorageReady(true);
     }, 0);
@@ -200,6 +174,50 @@ export default function TimetablePage() {
   }, [user, activeSemesterId, semesterLoading]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function revalidateFromCloud() {
+      if (!timetableStorageReady || semesterLoading || !user || !activeSemesterId) {
+        return;
+      }
+      setCloudSyncState("syncing");
+      try {
+        const remote = await fetchTimetableFromFirestore(user.uid, activeSemesterId);
+        if (!remote || cancelled) {
+          if (!cancelled) {
+            setCloudSyncState(lastSyncedAt ? "synced" : "local");
+          }
+          return;
+        }
+        const remoteSignature = timetableSignature(remote.startHour, remote.endHour, remote.entries);
+        if (lastSyncedSignatureRef.current === remoteSignature) {
+          return;
+        }
+        skipNextCloudSaveRef.current = true;
+        setStartHour(remote.startHour);
+        setEndHour(remote.endHour);
+        setEntries(remote.entries);
+        const scopedKey = timetableStorageKeyForUserSemester(user.uid, activeSemesterId);
+        window.localStorage.setItem(scopedKey, serializeTimetableStorage(remote));
+        lastSyncedSignatureRef.current = remoteSignature;
+        setCloudSyncState("synced");
+        setLastSyncedAt(Date.now());
+      } catch {
+        if (!cancelled) {
+          setCloudSyncState(lastSyncedAt ? "synced" : "local");
+          pushToast("Could not refresh timetable from cloud. Showing local data.", "error", "tt-cloud-read");
+        }
+      }
+    }
+
+    void revalidateFromCloud();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [timetableStorageReady, semesterLoading, user, activeSemesterId, pushToast, lastSyncedAt]);
+
+  useEffect(() => {
     if (!timetableStorageReady || semesterLoading || !user || !activeSemesterId) {
       return;
     }
@@ -207,8 +225,43 @@ export default function TimetablePage() {
       return;
     }
     const key = timetableStorageKeyForUserSemester(user.uid, activeSemesterId);
-    window.localStorage.setItem(key, JSON.stringify({ startHour, endHour, entries }));
-  }, [timetableStorageReady, semesterLoading, user, activeSemesterId, startHour, endHour, entries]);
+    const signature = timetableSignature(startHour, endHour, entries);
+    window.localStorage.setItem(key, serializeTimetableStorage({ startHour, endHour, entries }));
+
+    if (skipNextCloudSaveRef.current) {
+      skipNextCloudSaveRef.current = false;
+      return;
+    }
+    if (lastSyncedSignatureRef.current === signature) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCloudSyncState("syncing");
+      void saveTimetableToFirestore(user.uid, activeSemesterId, { startHour, endHour, entries })
+        .then(() => {
+          lastSyncedSignatureRef.current = signature;
+          setCloudSyncState("synced");
+          setLastSyncedAt(Date.now());
+        })
+        .catch(() => {
+          setCloudSyncState(lastSyncedAt ? "synced" : "local");
+          pushToast("Could not sync timetable to cloud. Saved locally for now.", "error", "tt-cloud-write");
+        });
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    timetableStorageReady,
+    semesterLoading,
+    user,
+    activeSemesterId,
+    startHour,
+    endHour,
+    entries,
+    pushToast,
+    lastSyncedAt,
+  ]);
 
   useEffect(() => {
     let isMounted = true;
@@ -628,6 +681,19 @@ export default function TimetablePage() {
     });
   }, [entries]);
 
+  const syncLabel = useMemo(() => {
+    if (cloudSyncState === "syncing") {
+      return "Syncing...";
+    }
+    if (lastSyncedAt) {
+      return `Synced ${new Date(lastSyncedAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    }
+    return "Local cache";
+  }, [cloudSyncState, lastSyncedAt]);
+
   return (
     <div className="space-y-3">
       <header className="space-y-1">
@@ -636,6 +702,7 @@ export default function TimetablePage() {
         <div className="flex flex-wrap items-center gap-3 text-xs text-app-subtle">
           <p>Hourly grid in GMT. Default range 07:00 to 19:00.</p>
           <span className="rounded-full bg-app-muted px-2 py-1">Saved blocks: {totalFilled}</span>
+          <span className="rounded-full bg-app-muted px-2 py-1">{syncLabel}</span>
         </div>
       </header>
 
@@ -804,6 +871,8 @@ export default function TimetablePage() {
                   min={1}
                   max={12}
                   value={draftEntry.durationHours}
+                  onFocus={(event) => event.currentTarget.select()}
+                  onClick={(event) => event.currentTarget.select()}
                   onChange={(event) =>
                     setDraftEntry((current) => ({
                       ...current,

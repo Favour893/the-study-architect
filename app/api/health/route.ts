@@ -8,6 +8,9 @@ export async function GET() {
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID &&
       process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID.trim(),
   );
+  const hasUpstashRedis =
+    Boolean(process.env.UPSTASH_REDIS_REST_URL?.trim()) &&
+    Boolean(process.env.UPSTASH_REDIS_REST_TOKEN?.trim());
 
   return NextResponse.json(
     {
@@ -15,6 +18,7 @@ export async function GET() {
       env: {
         OPENAI_API_KEY: hasOpenAiKey ? "present" : "missing",
         NEXT_PUBLIC_FIREBASE_PROJECT_ID: hasFirebaseProjectId ? "present" : "missing",
+        UPSTASH_REDIS_RATE_LIMIT: hasUpstashRedis ? "present" : "missing",
       },
       timestamp: new Date().toISOString(),
     },

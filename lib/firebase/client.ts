@@ -1,4 +1,6 @@
 import { initializeApp, getApp, getApps } from "firebase/app";
+import { connectAuthEmulator, getAuth } from "firebase/auth";
+import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -34,3 +36,28 @@ export const firebaseApp = hasFirebaseConfig
     ? getApp()
     : initializeApp(firebaseConfig)
   : null;
+
+let emulatorConnectAttempted = false;
+
+/**
+ * Routes Auth + Firestore to local emulators when NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true (browser only).
+ */
+function connectLocalEmulatorsIfConfigured() {
+  if (typeof window === "undefined" || !firebaseApp || emulatorConnectAttempted) {
+    return;
+  }
+  if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR !== "true") {
+    return;
+  }
+  emulatorConnectAttempted = true;
+  const authHost = process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST ?? "127.0.0.1:9099";
+  const fsHost = process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_HOST ?? "127.0.0.1";
+  const fsPort = Number(process.env.NEXT_PUBLIC_FIRESTORE_EMULATOR_PORT ?? "8080");
+
+  const auth = getAuth(firebaseApp);
+  connectAuthEmulator(auth, `http://${authHost}`, { disableWarnings: true });
+  const db = getFirestore(firebaseApp);
+  connectFirestoreEmulator(db, fsHost, fsPort);
+}
+
+connectLocalEmulatorsIfConfigured();

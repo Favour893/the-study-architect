@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { listCourses } from "@/lib/data/courses";
 import { listTopics } from "@/lib/data/topics";
 import { getClientAuth } from "@/lib/firebase/auth";
@@ -143,9 +143,12 @@ export default function DashboardPage() {
   const [nextClass, setNextClass] = useState<CurrentClass | null>(null);
   const [priorityTopic, setPriorityTopic] = useState<PriorityTopic | null>(null);
   const [studyMission, setStudyMission] = useState<string | null>(null);
+  const [studyReasoning, setStudyReasoning] = useState<string | null>(null);
   const [missionTopics, setMissionTopics] = useState<MissionTopic[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [reasoningOpen, setReasoningOpen] = useState(false);
+  const reasoningWrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     function refreshCurrentClass() {
@@ -219,6 +222,22 @@ export default function DashboardPage() {
       isMounted = false;
     };
   }, [user, activeSemesterId, semesterLoading]);
+
+  useEffect(() => {
+    if (!reasoningOpen) {
+      return;
+    }
+    function handlePointerDown(event: PointerEvent) {
+      if (!reasoningWrapRef.current) {
+        return;
+      }
+      if (!reasoningWrapRef.current.contains(event.target as Node)) {
+        setReasoningOpen(false);
+      }
+    }
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [reasoningOpen]);
 
   const currentClassLabel = useMemo(() => {
     if (!currentClass) {
@@ -307,6 +326,7 @@ export default function DashboardPage() {
 
   async function requestAiStudyHint() {
     setAiError(null);
+    setReasoningOpen(false);
     const auth = getClientAuth();
     const firebaseUser = auth.currentUser;
     if (!firebaseUser) {
@@ -353,6 +373,7 @@ export default function DashboardPage() {
         setStudyMission(
           "No taught topics are waiting. Mark a topic as Taught in Class on a course syllabus to get a mission.",
         );
+        setStudyReasoning(null);
         setMissionTopics([]);
         return;
       }
@@ -382,15 +403,20 @@ export default function DashboardPage() {
           },
         }),
       });
-      const data = (await res.json()) as { mission?: string; error?: string };
+      const data = (await res.json()) as { mission?: string; reasoning?: string; error?: string };
       if (!res.ok) {
         setStudyMission(null);
+        setStudyReasoning(null);
         setAiError(data.error ?? "Could not get a suggestion.");
         return;
       }
-      if (typeof data.mission === "string") {
+      if (typeof data.mission === "string" && typeof data.reasoning === "string") {
         setStudyMission(data.mission);
+        setStudyReasoning(data.reasoning);
+        setReasoningOpen(false);
       } else {
+        setStudyMission(null);
+        setStudyReasoning(null);
         setAiError("Unexpected response from the assistant.");
       }
     } catch {
@@ -429,6 +455,16 @@ export default function DashboardPage() {
           >
             {aiLoading ? "Thinking…" : "Get a tailored next step"}
           </button>
+          {studyMission ? (
+            <button
+              type="button"
+              disabled={aiLoading}
+              onClick={() => void requestAiStudyHint()}
+              className="ml-2 rounded-lg border border-app-border bg-white px-4 py-2 text-sm font-medium text-app-fg transition hover:bg-app-muted disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {aiLoading ? "Regenerating…" : "Regenerate"}
+            </button>
+          ) : null}
           {aiError ? <p className="text-sm text-red-700">{aiError}</p> : null}
           {missionTopics.length > 0 ? (
             <div className="rounded-lg border border-app-border bg-white p-3">
@@ -445,7 +481,30 @@ export default function DashboardPage() {
           ) : null}
           {studyMission ? (
             <div className="rounded-xl border border-app-border bg-gradient-to-br from-white to-app-muted/40 p-4 shadow-sm">
-              <p className="text-xs uppercase tracking-wide text-app-subtle">Study mission</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs uppercase tracking-wide text-app-subtle">Study mission</p>
+                {studyReasoning ? (
+                  <div ref={reasoningWrapRef} className="group relative">
+                    <button
+                      type="button"
+                      onClick={() => setReasoningOpen((current) => !current)}
+                      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-app-border text-[11px] text-app-subtle hover:bg-app-muted"
+                      aria-label="Why this mission?"
+                      title="Why this?"
+                      aria-expanded={reasoningOpen}
+                    >
+                      ?
+                    </button>
+                    <div
+                      className={`absolute left-0 top-6 z-10 w-72 rounded-lg border border-app-border bg-white p-2 text-xs leading-relaxed text-app-fg shadow-lg ${
+                        reasoningOpen ? "block" : "hidden group-hover:block group-focus-within:block"
+                      }`}
+                    >
+                      {studyReasoning}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
               <p className="mt-1 text-sm leading-relaxed text-app-fg">{studyMission}</p>
             </div>
           ) : null}

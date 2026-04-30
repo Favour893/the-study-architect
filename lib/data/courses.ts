@@ -1,4 +1,14 @@
-import { addDoc, collection, doc, getDocs, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
 import { getDb } from "@/lib/firebase/db";
 import { semesterCoursesPath } from "@/lib/data/paths";
 import type { Course } from "@/lib/types/domain";
@@ -47,4 +57,9 @@ export async function updateCourse(
     lecturerName: payload.lecturerName?.trim() || "",
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function deleteCourse(uid: string, semesterId: string, courseId: string) {
+  const db = getDb();
+  await deleteDoc(doc(db, `${semesterCoursesPath(uid, semesterId)}/${courseId}`));
 }

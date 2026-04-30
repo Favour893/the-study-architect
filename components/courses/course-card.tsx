@@ -13,6 +13,7 @@ type CourseCardProps = {
     courseId: string,
     payload: { title: string; code?: string; lecturerName?: string },
   ) => Promise<void>;
+  onDeleteCourse: (courseId: string) => Promise<void>;
 };
 
 export function CourseCard({
@@ -21,6 +22,7 @@ export function CourseCard({
   onStartEditing,
   onCancelEditing,
   onSaveEdits,
+  onDeleteCourse,
 }: CourseCardProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [title, setTitle] = useState(course.title);
@@ -84,6 +86,13 @@ export function CourseCard({
             />
           </div>
           <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => void onDeleteCourse(course.id)}
+              className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700 hover:bg-red-100"
+            >
+              Delete
+            </button>
             <button
               type="button"
               onClick={handleCancel}

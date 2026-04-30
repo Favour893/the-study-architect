@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { allowAiRequest } from "@/lib/server/ai-rate-limit";
 import { verifyFirebaseIdToken } from "@/lib/server/verify-firebase-id-token";
 
@@ -28,6 +29,80 @@ function isMissionTopic(value: unknown): value is MissionTopic {
   }
   const v = value as Record<string, unknown>;
   return typeof v.courseName === "string" && typeof v.topicTitle === "string";
+}
+
+async function openAiChatWithRetry(apiKey: string, model: string, payload: MissionRequest, topics: MissionTopic[]) {
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            {
+              role: "system",
+              content:
+                "You are an elite study coach. Return STRICT JSON with keys mission and reasoning. mission must be exactly 2 concise sentences, specific and action-oriented, mentioning one topic by name and one concrete review action. reasoning must be exactly 1 sentence explaining why that mission was selected based on urgency/timing/status.",
+            },
+            {
+              role: "user",
+              content: JSON.stringify({
+                context: payload.context ?? {},
+                taughtTopics: topics.map((topic) => ({
+                  course: topic.courseName,
+                  topic: topic.topicTitle,
+                  notes: topic.notes ?? "",
+                  nextClassPriority: Boolean(topic.isFromNextClass),
+                })),
+              }),
+            },
+          ],
+          max_tokens: 180,
+          temperature: 0.4,
+        }),
+      });
+
+      if (!response.ok) {
+        const retryable = response.status === 429 || response.status >= 500;
+        if (retryable && attempt < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 250 * attempt * attempt));
+          continue;
+        }
+        return { ok: false as const, status: response.status };
+      }
+
+      const data = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string | null } }>;
+      };
+      const content = data.choices?.[0]?.message?.content?.trim();
+      if (!content) {
+        return { ok: false as const, status: 502 };
+      }
+      try {
+        const parsed = JSON.parse(content) as { mission?: string; reasoning?: string };
+        const mission = typeof parsed.mission === "string" ? parsed.mission.trim() : "";
+        const reasoning = typeof parsed.reasoning === "string" ? parsed.reasoning.trim() : "";
+        if (!mission || !reasoning) {
+          return { ok: false as const, status: 502 };
+        }
+        return { ok: true as const, mission, reasoning };
+      } catch {
+        return { ok: false as const, status: 502 };
+      }
+    } catch {
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 250 * attempt * attempt));
+        continue;
+      }
+      return { ok: false as const, status: 502 };
+    }
+  }
+  return { ok: false as const, status: 502 };
 }
 
 export async function POST(request: Request) {
@@ -68,57 +143,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid or expired session." }, { status: 401 });
   }
 
-  if (!allowAiRequest(uid)) {
+  if (!(await allowAiRequest(uid))) {
     return NextResponse.json({ error: "Too many AI requests this hour. Try later." }, { status: 429 });
   }
 
-  try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an elite study coach. Generate exactly 2 concise sentences as a Study Mission. Be specific and action-oriented. Mention one topic by name and one concrete review action.",
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              context: payload.context ?? {},
-              taughtTopics: topics.map((topic) => ({
-                course: topic.courseName,
-                topic: topic.topicTitle,
-                notes: topic.notes ?? "",
-                nextClassPriority: Boolean(topic.isFromNextClass),
-              })),
-            }),
-          },
-        ],
-        max_tokens: 180,
-        temperature: 0.4,
-      }),
+  const result = await openAiChatWithRetry(apiKey, model, payload, topics);
+  if (!result.ok) {
+    Sentry.captureMessage("OpenAI chat generation failed", {
+      level: "error",
+      extra: { status: result.status, topicCount: topics.length },
     });
-
-    if (!response.ok) {
-      return NextResponse.json({ error: "OpenAI request failed." }, { status: 502 });
-    }
-
-    const data = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string | null } }>;
-    };
-    const mission = data.choices?.[0]?.message?.content?.trim();
-    if (!mission) {
-      return NextResponse.json({ error: "Empty mission response." }, { status: 502 });
-    }
-
-    return NextResponse.json({ mission });
-  } catch {
     return NextResponse.json({ error: "Could not generate mission right now." }, { status: 502 });
   }
+  return NextResponse.json({ mission: result.mission, reasoning: result.reasoning });
 }

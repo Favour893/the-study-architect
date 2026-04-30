@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { CourseCard } from "@/components/courses/course-card";
 import { CourseForm } from "@/components/courses/course-form";
-import { createCourse, listCourses, updateCourse } from "@/lib/data/courses";
+import { createCourse, deleteCourse, listCourses, updateCourse } from "@/lib/data/courses";
 import { createTopic } from "@/lib/data/topics";
 import type { Course } from "@/lib/types/domain";
 import { useAuth } from "@/providers/auth-provider";
@@ -120,6 +120,20 @@ export default function CoursesPage() {
     }
   }
 
+  async function handleDeleteCourse(courseId: string) {
+    if (!user || !activeSemesterId) {
+      return;
+    }
+    try {
+      await deleteCourse(user.uid, activeSemesterId, courseId);
+      await loadCourses(user.uid, activeSemesterId);
+      setEditingCourseId(null);
+      pushToast("Course deleted.");
+    } catch {
+      pushToast("Could not delete course. Try again.", "error");
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -165,6 +179,7 @@ export default function CoursesPage() {
               onStartEditing={setEditingCourseId}
               onCancelEditing={() => setEditingCourseId(null)}
               onSaveEdits={handleSaveCourseEdits}
+              onDeleteCourse={handleDeleteCourse}
             />
           ))}
         </div>
