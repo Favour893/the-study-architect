@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { listCourses } from "@/lib/data/courses";
 import { listTopics } from "@/lib/data/topics";
 import { getClientAuth } from "@/lib/firebase/auth";
+import { rankMissionTopics, resolveTopicStage } from "@/lib/pulse/study-mission";
 import { TIMETABLE_LEGACY_STORAGE_KEY, timetableStorageKeyForUserSemester } from "@/lib/timetable-storage";
-import type { Topic } from "@/lib/types/domain";
 import { useAuth } from "@/providers/auth-provider";
 import { useSemester } from "@/providers/semester-provider";
 
@@ -311,19 +311,6 @@ export default function DashboardPage() {
     [semesters, activeSemesterId],
   );
 
-  function topicStatus(topic: Topic): "pending" | "taught" | "mastered" {
-    if (topic.learningStage === "mastered") {
-      return "mastered";
-    }
-    if (topic.learningStage === "taught") {
-      return "taught";
-    }
-    if (topic.taughtInClass) {
-      return "taught";
-    }
-    return "pending";
-  }
-
   async function requestAiStudyHint() {
     setAiError(null);
     setReasoningOpen(false);
@@ -356,7 +343,7 @@ export default function DashboardPage() {
       for (const course of courses) {
         const topics = await listTopics(user.uid, activeSemesterId, course.id);
         for (const topic of topics) {
-          if (topicStatus(topic) !== "taught") {
+          if (resolveTopicStage(topic) !== "taught") {
             continue;
           }
           taughtTopics.push({
@@ -378,14 +365,7 @@ export default function DashboardPage() {
         return;
       }
 
-      const ranked = taughtTopics
-        .map((topic, index) => ({
-          topic,
-          score: (topic.isFromNextClass ? 1000 : 0) + (topic.notes ? 25 : 0) - index,
-        }))
-        .sort((a, b) => b.score - a.score)
-        .slice(0, 3)
-        .map((item) => item.topic);
+      const ranked = rankMissionTopics(taughtTopics, 3);
 
       setMissionTopics(ranked);
 
