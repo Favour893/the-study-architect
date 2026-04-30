@@ -27,15 +27,12 @@ export async function saveTimetableToFirestore(
 ) {
   const db = getDb();
   const ref = doc(db, semesterTimetableDocPath(uid, semesterId));
-  await setDoc(
-    ref,
-    {
-      startHour: payload.startHour,
-      endHour: payload.endHour,
-      entries: payload.entries,
-      updatedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-    },
-    { merge: true },
-  );
+  // Overwrite the timetable document so removed/moved slots do not linger in Firestore map merges.
+  await setDoc(ref, {
+    startHour: payload.startHour,
+    endHour: payload.endHour,
+    entries: payload.entries,
+    updatedAt: serverTimestamp(),
+    createdAt: serverTimestamp(),
+  });
 }
