@@ -87,7 +87,7 @@ export function AuthForm() {
       ) : null}
 
       <SegmentedControl
-        className="mb-6 w-full text-sm"
+        className="mb-6 w-full justify-center text-sm"
         value={mode}
         onChange={setMode}
         options={[

@@ -1,6 +1,5 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { useId, useRef } from "react";
 
@@ -59,21 +58,8 @@ export function SegmentedControl<T extends string>({
   }
 
   return (
-    <div className={`flex min-w-0 items-center gap-1.5 ${className}`} role="group" aria-label={ariaLabel}>
-      <button
-        type="button"
-        className="shrink-0 rounded-md border border-app-border bg-white p-1.5 text-app-fg shadow-sm hover:bg-app-muted disabled:cursor-not-allowed disabled:opacity-40"
-        aria-label="Previous option"
-        disabled={len <= 1}
-        onClick={() => step(-1)}
-      >
-        <ChevronLeft className="h-4 w-4" aria-hidden />
-      </button>
-
-      <div
-        className="inline-flex min-w-0 flex-1 justify-center rounded-lg bg-app-muted p-1"
-        role="tablist"
-      >
+    <div className={`flex min-w-0 items-center ${className}`} role="group" aria-label={ariaLabel}>
+      <div className="inline-flex rounded-lg bg-app-muted p-1" role="tablist">
         {options.map((opt, i) => (
           <button
             key={opt.value}
@@ -95,16 +81,6 @@ export function SegmentedControl<T extends string>({
           </button>
         ))}
       </div>
-
-      <button
-        type="button"
-        className="shrink-0 rounded-md border border-app-border bg-white p-1.5 text-app-fg shadow-sm hover:bg-app-muted disabled:cursor-not-allowed disabled:opacity-40"
-        aria-label="Next option"
-        disabled={len <= 1}
-        onClick={() => step(1)}
-      >
-        <ChevronRight className="h-4 w-4" aria-hidden />
-      </button>
     </div>
   );
 }
