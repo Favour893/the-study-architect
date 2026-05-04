@@ -1,6 +1,8 @@
 "use client";
 
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useState } from "react";
+import { updateUserProfileProgramme } from "@/lib/data/semesters";
 import { createAccountWithEmail, signInWithEmail, signInWithGoogle } from "@/lib/firebase/auth";
 import { getFirebaseConfigStatus, hasFirebaseConfig } from "@/lib/firebase/client";
 
@@ -37,6 +39,7 @@ export function AuthForm() {
   const [mode, setMode] = useState<AuthMode>("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [programmeOfStudy, setProgrammeOfStudy] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +50,11 @@ export function AuthForm() {
 
     try {
       if (mode === "create-account") {
-        await createAccountWithEmail(email, password);
+        const cred = await createAccountWithEmail(email, password);
+        const trimmedProgramme = programmeOfStudy.trim();
+        if (trimmedProgramme) {
+          await updateUserProfileProgramme(cred.user.uid, trimmedProgramme);
+        }
       } else {
         await signInWithEmail(email, password);
       }
@@ -79,28 +86,16 @@ export function AuthForm() {
         </p>
       ) : null}
 
-      <div className="mb-6 flex rounded-xl bg-app-muted p-1 text-sm">
-        <button
-          type="button"
-          onClick={() => setMode("sign-in")}
-          className={`flex-1 rounded-lg px-3 py-2 transition ${
-            mode === "sign-in" ? "bg-white font-medium text-app-fg shadow-sm" : "text-app-subtle"
-          }`}
-        >
-          Sign in
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("create-account")}
-          className={`flex-1 rounded-lg px-3 py-2 transition ${
-            mode === "create-account"
-              ? "bg-white font-medium text-app-fg shadow-sm"
-              : "text-app-subtle"
-          }`}
-        >
-          Create account
-        </button>
-      </div>
+      <SegmentedControl
+        className="mb-6 w-full text-sm"
+        value={mode}
+        onChange={setMode}
+        options={[
+          { value: "sign-in", label: "Sign in" },
+          { value: "create-account", label: "Create account" },
+        ]}
+        ariaLabel="Sign in or create account"
+      />
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block space-y-1">
@@ -127,6 +122,20 @@ export function AuthForm() {
             placeholder="At least 6 characters"
           />
         </label>
+
+        {mode === "create-account" ? (
+          <label className="block space-y-1">
+            <span className="text-sm text-app-subtle">Programme of study (optional)</span>
+            <input
+              type="text"
+              value={programmeOfStudy}
+              onChange={(event) => setProgrammeOfStudy(event.target.value)}
+              className="w-full rounded-lg border border-app-border bg-white px-3 py-2 outline-none ring-app-accent transition focus:ring-2"
+              placeholder="e.g. BSc Computer Science"
+            />
+            <span className="text-xs text-app-subtle">You can add or change this later from your account menu.</span>
+          </label>
+        ) : null}
 
         {error ? (
           <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>

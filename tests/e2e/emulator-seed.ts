@@ -81,6 +81,7 @@ export async function seedFirebaseEmulatorsForE2E() {
       email,
       displayName: "E2E User",
       gradeMode: "GPA",
+      programmeOfStudy: "Computer Science",
       onboardingComplete: true,
       activeSemesterId: SEMESTER_ID,
       updatedAt: serverTimestamp(),

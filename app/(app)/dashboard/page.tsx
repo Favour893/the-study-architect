@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { buildCombinedDocumentContextForAi, listCourseDocuments } from "@/lib/data/course-documents";
 import { listCourses } from "@/lib/data/courses";
+import { getUserProfile } from "@/lib/data/semesters";
 import { listTopics } from "@/lib/data/topics";
 import { getClientAuth } from "@/lib/firebase/auth";
 import { rankMissionTopics, resolveTopicStage } from "@/lib/pulse/study-mission";
@@ -369,6 +371,22 @@ export default function DashboardPage() {
 
       setMissionTopics(ranked);
 
+      const profile = await getUserProfile(user.uid);
+      const programmeOfStudy = profile?.programmeOfStudy?.trim() || null;
+
+      let importedReferenceForNextClass: string | null = null;
+      if (nextClass?.courseName?.trim()) {
+        const nextName = nextClass.courseName.trim().toLowerCase();
+        const nextCourse = courses.find((c) => c.title.trim().toLowerCase() === nextName);
+        if (nextCourse) {
+          const docs = await listCourseDocuments(user.uid, activeSemesterId, nextCourse.id);
+          const excerpt = buildCombinedDocumentContextForAi(docs);
+          if (excerpt.length > 0) {
+            importedReferenceForNextClass = excerpt;
+          }
+        }
+      }
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -380,6 +398,8 @@ export default function DashboardPage() {
             pulseBody,
             semesterName: activeSemester?.name,
             nextClass: nextClass?.courseName ?? null,
+            programmeOfStudy,
+            importedReferenceForNextClass,
           },
         }),
       });

@@ -18,6 +18,10 @@ export function semesterCourseTopicsPath(uid: string, semesterId: string, course
   return `users/${uid}/semesters/${semesterId}/courses/${courseId}/topics`;
 }
 
+export function semesterCourseDocumentsPath(uid: string, semesterId: string, courseId: string) {
+  return `users/${uid}/semesters/${semesterId}/courses/${courseId}/documents`;
+}
+
 export function semesterTimetableDocPath(uid: string, semesterId: string) {
   return `users/${uid}/semesters/${semesterId}/timetable/main`;
 }

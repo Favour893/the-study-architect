@@ -11,7 +11,7 @@ type CourseCardProps = {
   onCancelEditing: () => void;
   onSaveEdits: (
     courseId: string,
-    payload: { title: string; code?: string; lecturerName?: string },
+    payload: { title: string; code?: string; lecturerName?: string; creditUnits?: number },
   ) => Promise<void>;
   onDeleteCourse: (courseId: string) => Promise<void>;
 };
@@ -28,14 +28,18 @@ export function CourseCard({
   const [title, setTitle] = useState(course.title);
   const [code, setCode] = useState(course.code ?? "");
   const [lecturerName, setLecturerName] = useState(course.lecturerName ?? "");
+  const [creditUnits, setCreditUnits] = useState(course.creditUnits ?? 3);
 
   async function handleSave() {
     if (!title.trim()) {
       return;
     }
     setIsSaving(true);
-    await onSaveEdits(course.id, { title, code, lecturerName });
-    setIsSaving(false);
+    try {
+      await onSaveEdits(course.id, { title, code, lecturerName, creditUnits });
+    } finally {
+      setIsSaving(false);
+    }
     onCancelEditing();
   }
 
@@ -43,8 +47,11 @@ export function CourseCard({
     setTitle(course.title);
     setCode(course.code ?? "");
     setLecturerName(course.lecturerName ?? "");
+    setCreditUnits(course.creditUnits ?? 3);
     onCancelEditing();
   }
+
+  const displayCredits = course.creditUnits ?? 3;
 
   return (
     <article className="space-y-4 rounded-2xl border border-app-border bg-panel p-5">
@@ -52,6 +59,9 @@ export function CourseCard({
         <div>
           <h3 className="text-base font-medium text-app-fg">{course.title}</h3>
           {course.code ? <p className="text-sm text-app-subtle">{course.code}</p> : null}
+          <p className="mt-1 text-sm text-app-fg">
+            {displayCredits} {displayCredits === 1 ? "credit" : "credits"}
+          </p>
           <div className="mt-1 space-y-0.5">
             {course.lecturerName ? (
               <p className="text-xs text-app-subtle">Lecturer: {course.lecturerName}</p>
@@ -64,7 +74,13 @@ export function CourseCard({
       </div>
 
       {isEditing ? (
-        <div className="space-y-2 rounded-xl border border-app-border bg-white p-3">
+        <form
+          className="space-y-2 rounded-xl border border-app-border bg-white p-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void handleSave();
+          }}
+        >
           <input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
@@ -79,12 +95,21 @@ export function CourseCard({
               placeholder="Course code"
             />
             <input
-              value={lecturerName}
-              onChange={(event) => setLecturerName(event.target.value)}
+              type="number"
+              min={1}
+              max={30}
+              value={creditUnits}
+              onChange={(event) => setCreditUnits(Number(event.target.value) || 3)}
               className="w-full rounded-md border border-app-border px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
-              placeholder="Lecturer"
+              placeholder="Credit units"
             />
           </div>
+          <input
+            value={lecturerName}
+            onChange={(event) => setLecturerName(event.target.value)}
+            className="w-full rounded-md border border-app-border px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
+            placeholder="Lecturer"
+          />
           <div className="flex justify-end gap-2">
             <button
               type="button"
@@ -101,15 +126,14 @@ export function CourseCard({
               Cancel
             </button>
             <button
-              type="button"
+              type="submit"
               disabled={isSaving}
-              onClick={() => void handleSave()}
               className="rounded-md bg-app-fg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
             >
               {isSaving ? "Saving..." : "Save"}
             </button>
           </div>
-        </div>
+        </form>
       ) : null}
 
       <p className="mt-4 text-sm text-app-subtle">

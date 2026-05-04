@@ -204,7 +204,13 @@ export function NewSemesterForm() {
                 </div>
 
                 {isEditing ? (
-                  <div className="mt-3 grid gap-2 rounded-md border border-app-border bg-panel p-3 sm:grid-cols-3">
+                  <form
+                    className="mt-3 grid gap-2 rounded-md border border-app-border bg-panel p-3 sm:grid-cols-3"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void saveEdit(sem.id);
+                    }}
+                  >
                     <input
                       value={editName}
                       onChange={(event) => setEditName(event.target.value)}
@@ -224,14 +230,13 @@ export function NewSemesterForm() {
                       className="rounded-md border border-app-border bg-white px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
                     />
                     <button
-                      type="button"
+                      type="submit"
                       disabled={isBusy}
-                      onClick={() => void saveEdit(sem.id)}
                       className="rounded-md bg-app-fg px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {isBusy ? "Saving..." : "Save changes"}
                     </button>
-                  </div>
+                  </form>
                 ) : null}
               </div>
             );

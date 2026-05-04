@@ -13,6 +13,10 @@ import { getDb } from "@/lib/firebase/db";
 import { semesterCoursesPath } from "@/lib/data/paths";
 import type { Course } from "@/lib/types/domain";
 
+function clampCreditUnits(n: number): number {
+  return Math.min(30, Math.max(1, Math.round(n)));
+}
+
 export async function listCourses(uid: string, semesterId: string) {
   const db = getDb();
   const ref = collection(db, semesterCoursesPath(uid, semesterId));
@@ -28,14 +32,19 @@ export async function listCourses(uid: string, semesterId: string) {
 export async function createCourse(
   uid: string,
   semesterId: string,
-  payload: { title: string; code?: string; lecturerName?: string },
+  payload: { title: string; code?: string; lecturerName?: string; creditUnits?: number },
 ) {
   const db = getDb();
   const ref = collection(db, semesterCoursesPath(uid, semesterId));
+  const creditUnits =
+    typeof payload.creditUnits === "number" && !Number.isNaN(payload.creditUnits)
+      ? clampCreditUnits(payload.creditUnits)
+      : 3;
   const courseRef = await addDoc(ref, {
     title: payload.title.trim(),
     code: payload.code?.trim() || "",
     lecturerName: payload.lecturerName?.trim() || "",
+    creditUnits,
     topicCount: 0,
     latestTopicStatus: "pending",
     createdAt: serverTimestamp(),
@@ -48,15 +57,19 @@ export async function updateCourse(
   uid: string,
   semesterId: string,
   courseId: string,
-  payload: { title: string; code?: string; lecturerName?: string },
+  payload: { title: string; code?: string; lecturerName?: string; creditUnits?: number },
 ) {
   const db = getDb();
-  await updateDoc(doc(db, `${semesterCoursesPath(uid, semesterId)}/${courseId}`), {
+  const data: Record<string, unknown> = {
     title: payload.title.trim(),
     code: payload.code?.trim() || "",
     lecturerName: payload.lecturerName?.trim() || "",
     updatedAt: serverTimestamp(),
-  });
+  };
+  if (typeof payload.creditUnits === "number" && !Number.isNaN(payload.creditUnits)) {
+    data.creditUnits = clampCreditUnits(payload.creditUnits);
+  }
+  await updateDoc(doc(db, `${semesterCoursesPath(uid, semesterId)}/${courseId}`), data);
 }
 
 export async function deleteCourse(uid: string, semesterId: string, courseId: string) {

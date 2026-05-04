@@ -1,5 +1,6 @@
 "use client";
 
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { completeOnboarding } from "@/lib/data/semesters";
@@ -20,6 +21,7 @@ export function SemesterOnboarding() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [gradeMode, setGradeMode] = useState<GradeMode>("GPA");
+  const [programmeOfStudy, setProgrammeOfStudy] = useState("");
   const [courses, setCourses] = useState<DraftCourse[]>(initialCourses);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +54,7 @@ export function SemesterOnboarding() {
         startDate,
         endDate,
         gradeMode,
+        programmeOfStudy,
         courses,
         email: user.email,
         displayName: user.displayName,
@@ -75,6 +78,20 @@ export function SemesterOnboarding() {
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-5">
+        <label className="block space-y-1">
+          <span className="text-sm text-app-subtle">Programme of study</span>
+          <input
+            required
+            value={programmeOfStudy}
+            onChange={(event) => setProgrammeOfStudy(event.target.value)}
+            className="w-full rounded-lg border border-app-border bg-white px-3 py-2 outline-none ring-app-accent transition focus:ring-2"
+            placeholder="e.g. BSc Computer Science, MBBS, LLB"
+          />
+          <span className="text-xs text-app-subtle">
+            The AI uses this to make study suggestions that fit your field.
+          </span>
+        </label>
+
         <label className="block space-y-1">
           <span className="text-sm text-app-subtle">Semester name</span>
           <input
@@ -111,20 +128,15 @@ export function SemesterOnboarding() {
 
         <fieldset className="space-y-2">
           <legend className="text-sm text-app-subtle">Grading mode</legend>
-          <div className="inline-flex rounded-lg bg-app-muted p-1">
-            {(["GPA", "CWA"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setGradeMode(mode)}
-                className={`rounded-md px-3 py-1.5 text-sm ${
-                  gradeMode === mode ? "bg-white text-app-fg shadow-sm" : "text-app-subtle"
-                }`}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            value={gradeMode}
+            onChange={setGradeMode}
+            options={[
+              { value: "GPA", label: "GPA" },
+              { value: "CWA", label: "CWA" },
+            ]}
+            ariaLabel="Grading mode"
+          />
         </fieldset>
 
         <fieldset className="space-y-3">

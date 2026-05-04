@@ -81,6 +81,25 @@ export async function createTopic(
   await syncCourseTopicMetrics(uid, semesterId, courseId);
 }
 
+export async function updateTopicTitle(
+  uid: string,
+  semesterId: string,
+  courseId: string,
+  topicId: string,
+  title: string,
+) {
+  const trimmed = title.trim();
+  if (!trimmed) {
+    throw new Error("Topic title is required.");
+  }
+  const db = getDb();
+  const topicRef = doc(db, `${semesterCourseTopicsPath(uid, semesterId, courseId)}/${topicId}`);
+  await updateDoc(topicRef, {
+    title: trimmed,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export async function setTopicNotes(
   uid: string,
   semesterId: string,

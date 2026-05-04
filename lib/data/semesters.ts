@@ -20,6 +20,7 @@ type OnboardingPayload = {
   startDate: string;
   endDate: string;
   gradeMode: GradeMode;
+  programmeOfStudy: string;
   courses: Array<{ title: string; code?: string }>;
   email: string | null;
   displayName: string | null;
@@ -35,6 +36,7 @@ export async function ensureUserProfile(uid: string, data: Partial<UserProfile>)
       uid,
       email: data.email ?? null,
       displayName: data.displayName ?? null,
+      programmeOfStudy: null,
       gradeMode: null,
       onboardingComplete: false,
       activeSemesterId: null,
@@ -42,6 +44,20 @@ export async function ensureUserProfile(uid: string, data: Partial<UserProfile>)
       updatedAt: serverTimestamp(),
     });
   }
+}
+
+export async function updateUserProfileProgramme(uid: string, programmeOfStudy: string | null) {
+  const db = getDb();
+  const profileRef = doc(db, userProfilePath(uid));
+  const trimmed = programmeOfStudy?.trim() ?? "";
+  await setDoc(
+    profileRef,
+    {
+      programmeOfStudy: trimmed.length > 0 ? trimmed : null,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
 }
 
 export async function getUserProfile(uid: string) {
@@ -77,6 +93,7 @@ export async function completeOnboarding(uid: string, payload: OnboardingPayload
         id: courseDoc.id,
         title: course.title.trim(),
         code: course.code?.trim() || "",
+        creditUnits: 3,
         topicCount: 0,
         latestTopicStatus: "pending",
         createdAt: serverTimestamp(),
@@ -90,6 +107,7 @@ export async function completeOnboarding(uid: string, payload: OnboardingPayload
       uid,
       email: payload.email,
       displayName: payload.displayName,
+      programmeOfStudy: payload.programmeOfStudy.trim() || null,
       gradeMode: payload.gradeMode,
       onboardingComplete: true,
       activeSemesterId: semesterId,
@@ -137,6 +155,7 @@ export async function createNewSemester(
         code: course.code ?? "",
         lecturerName: course.lecturerName ?? "",
         location: course.location ?? "",
+        creditUnits: typeof course.creditUnits === "number" ? course.creditUnits : 3,
         topicCount: 0,
         latestTopicStatus: "pending",
         createdAt: serverTimestamp(),

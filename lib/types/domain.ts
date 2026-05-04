@@ -4,6 +4,8 @@ export type UserProfile = {
   uid: string;
   email: string | null;
   displayName: string | null;
+  /** Field of study (e.g. Computer Science) — used to tailor AI suggestions. */
+  programmeOfStudy?: string | null;
   gradeMode: GradeMode | null;
   onboardingComplete: boolean;
   activeSemesterId: string | null;
@@ -27,8 +29,21 @@ export type Course = {
   code?: string;
   lecturerName?: string;
   location?: string;
+  /** Credit units for this course (used on grade calculator). */
+  creditUnits?: number;
   topicCount: number;
   latestTopicStatus: "pending" | "taught" | "studying";
+  createdAt?: unknown;
+  updatedAt?: unknown;
+};
+
+/** Imported reference material for a course (text extracted client-side; used for AI scope). */
+export type CourseDocument = {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  /** Plain text sent to AI (size-capped at upload). */
+  contentText: string;
   createdAt?: unknown;
   updatedAt?: unknown;
 };

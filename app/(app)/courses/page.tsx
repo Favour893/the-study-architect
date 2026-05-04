@@ -71,6 +71,7 @@ export default function CoursesPage() {
     title: string;
     code?: string;
     lecturerName?: string;
+    creditUnits?: number;
   }) {
     if (!user || !activeSemesterId) {
       return;
@@ -86,7 +87,7 @@ export default function CoursesPage() {
 
   async function handleSaveCourseEdits(
     courseId: string,
-    payload: { title: string; code?: string; lecturerName?: string },
+    payload: { title: string; code?: string; lecturerName?: string; creditUnits?: number },
   ) {
     if (!user || !activeSemesterId) {
       return;
@@ -110,6 +111,7 @@ export default function CoursesPage() {
         title: "Engineering Mathematics",
         code: "MTH 201",
         lecturerName: "Dr. Adaobi",
+        creditUnits: 3,
       });
       await createTopic(user.uid, activeSemesterId, courseId, { title: "Differential Equations" });
       await createTopic(user.uid, activeSemesterId, courseId, { title: "Laplace Transform" });

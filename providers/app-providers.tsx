@@ -1,5 +1,6 @@
 "use client";
 
+import { FocusSelectProvider } from "@/providers/focus-select-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 
 type AppProvidersProps = {
@@ -7,5 +8,9 @@ type AppProvidersProps = {
 };
 
 export function AppProviders({ children }: AppProvidersProps) {
-  return <AuthProvider>{children}</AuthProvider>;
+  return (
+    <AuthProvider>
+      <FocusSelectProvider>{children}</FocusSelectProvider>
+    </AuthProvider>
+  );
 }

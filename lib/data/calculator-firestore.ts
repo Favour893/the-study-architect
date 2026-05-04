@@ -1,6 +1,7 @@
 import { doc, getDoc, setDoc, type Firestore } from "firebase/firestore";
 import {
   calculatorStateFromRemotePayload,
+  loadCalculatorState,
   type CalculatorStoredState,
 } from "@/lib/calculator-storage";
 import { hasFirebaseConfig } from "@/lib/firebase/client";
@@ -27,6 +28,18 @@ export async function fetchCalculatorFromFirestore(
   } catch {
     return null;
   }
+}
+
+/** Firestore first, then local device storage (offline / no cloud doc). */
+export async function fetchCalculatorStateResolved(
+  uid: string,
+  semesterId: string,
+): Promise<CalculatorStoredState | null> {
+  const cloud = await fetchCalculatorFromFirestore(uid, semesterId);
+  if (cloud) {
+    return cloud;
+  }
+  return loadCalculatorState(uid, semesterId);
 }
 
 export async function saveCalculatorToFirestore(

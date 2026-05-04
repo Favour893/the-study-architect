@@ -18,8 +18,11 @@ type MissionRequest = {
   context?: {
     pulseTitle?: string;
     pulseBody?: string;
-    semesterName?: string;
+    semesterName?: string | null;
     nextClass?: string | null;
+    programmeOfStudy?: string | null;
+    /** Excerpt from user-imported docs for the course matching the next class (if any). */
+    importedReferenceForNextClass?: string | null;
   };
 };
 
@@ -47,7 +50,7 @@ async function openAiChatWithRetry(apiKey: string, model: string, payload: Missi
             {
               role: "system",
               content:
-                "You are an elite study coach. Return STRICT JSON with keys mission and reasoning. mission must be exactly 2 concise sentences, specific and action-oriented, mentioning one topic by name and one concrete review action. reasoning must be exactly 1 sentence explaining why that mission was selected based on urgency/timing/status.",
+                "You are an elite study coach. Return STRICT JSON with keys mission and reasoning. mission must be exactly 2 concise sentences, specific and action-oriented, mentioning one topic by name and one concrete review action. reasoning must be exactly 1 sentence explaining why that mission was selected based on urgency/timing/status. When context.programmeOfStudy is provided, tailor examples and tactics to that programme (without inventing unrelated majors). When context.importedReferenceForNextClass is non-empty, keep the mission aligned with that user-uploaded course material and the selected topic; do not invent content outside that scope.",
             },
             {
               role: "user",
@@ -123,6 +126,14 @@ export async function POST(request: Request) {
     payload = (await request.json()) as MissionRequest;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+  }
+
+  if (
+    payload.context &&
+    typeof payload.context.importedReferenceForNextClass === "string" &&
+    payload.context.importedReferenceForNextClass.length > 32_000
+  ) {
+    payload.context.importedReferenceForNextClass = payload.context.importedReferenceForNextClass.slice(0, 32_000);
   }
 
   if (!payload.idToken || typeof payload.idToken !== "string") {
