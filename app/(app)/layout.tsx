@@ -10,6 +10,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   return (
     <AuthGate>
       <AppProviders>
+        <div>testing</div>
         <AppShell>{children}</AppShell>
       </AppProviders>
     </AuthGate>
