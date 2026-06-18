@@ -428,14 +428,16 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-app-border bg-panel p-6">
-        <p className="text-sm text-app-subtle">The Pulse</p>
+      <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
+        <div className="h-1.5 bg-gradient-to-r from-sky-500 via-violet-500 via-50% to-amber-400" />
+        <div className="p-6">
+        <p className="text-sm font-semibold text-app-violet">The Pulse</p>
         <h2 className="mt-1 text-xl font-semibold text-app-fg">{pulseTitle}</h2>
         <p className="mt-2 text-sm text-app-subtle">{pulseBody}</p>
         <div className="mt-5 space-y-2">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-app-muted">
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-app-muted">
             <div
-              className="h-full min-w-0 rounded-full bg-app-accent transition-[width] duration-300"
+              className="h-full min-w-0 rounded-full bg-gradient-to-r from-sky-500 via-violet-500 to-teal-400 transition-[width] duration-300"
               style={{
                 width:
                   semesterProgress === null ? "0%" : `${Math.min(100, Math.max(0, semesterProgress))}%`,
@@ -451,7 +453,7 @@ export default function DashboardPage() {
             type="button"
             disabled={aiLoading}
             onClick={() => void requestAiStudyHint()}
-            className="rounded-lg border border-app-border bg-white px-4 py-2 text-sm font-medium text-app-fg transition hover:bg-app-muted disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-lg bg-gradient-to-r from-app-accent to-app-violet px-4 py-2 text-sm font-medium text-white shadow-sm shadow-violet-500/20 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {aiLoading ? "Thinking…" : "Get a tailored next step"}
           </button>
@@ -460,27 +462,37 @@ export default function DashboardPage() {
               type="button"
               disabled={aiLoading}
               onClick={() => void requestAiStudyHint()}
-              className="ml-2 rounded-lg border border-app-border bg-white px-4 py-2 text-sm font-medium text-app-fg transition hover:bg-app-muted disabled:cursor-not-allowed disabled:opacity-60"
+              className="ml-2 rounded-lg border border-app-accent/30 bg-app-accent-soft px-4 py-2 text-sm font-medium text-app-accent transition hover:bg-app-accent-light disabled:cursor-not-allowed disabled:opacity-60"
             >
               {aiLoading ? "Regenerating…" : "Regenerate"}
             </button>
           ) : null}
           {aiError ? <p className="text-sm text-red-700">{aiError}</p> : null}
           {missionTopics.length > 0 ? (
-            <div className="rounded-lg border border-app-border bg-white p-3">
-              <p className="text-xs uppercase tracking-wide text-app-subtle">Top taught topics</p>
-              <ul className="mt-1 space-y-1">
-                {missionTopics.map((topic) => (
-                  <li key={`${topic.courseName}-${topic.topicTitle}`} className="text-sm text-app-fg">
-                    {topic.topicTitle} ({topic.courseName})
-                    {topic.isFromNextClass ? " - next class" : ""}
+            <div className="rounded-lg border border-violet-200 bg-app-violet-soft p-3 dark:border-violet-900/50">
+              <p className="text-xs font-medium uppercase tracking-wide text-app-violet">Top taught topics</p>
+              <ul className="mt-2 space-y-1.5">
+                {missionTopics.map((topic, index) => (
+                  <li
+                    key={`${topic.courseName}-${topic.topicTitle}`}
+                    className="flex items-start gap-2 text-sm text-app-fg"
+                  >
+                    <span
+                      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                        index % 3 === 0 ? "bg-sky-500" : index % 3 === 1 ? "bg-emerald-500" : "bg-amber-500"
+                      }`}
+                    />
+                    <span>
+                      {topic.topicTitle} ({topic.courseName})
+                      {topic.isFromNextClass ? " - next class" : ""}
+                    </span>
                   </li>
                 ))}
               </ul>
             </div>
           ) : null}
           {studyMission ? (
-            <div className="rounded-xl border border-app-border bg-gradient-to-br from-white to-app-muted/40 p-4 shadow-sm">
+            <div className="rounded-xl border border-teal-200 bg-gradient-to-br from-app-teal-soft via-app-accent-soft to-app-violet-soft p-4 shadow-sm dark:border-teal-900/40">
               <div className="flex items-center gap-2">
                 <p className="text-xs uppercase tracking-wide text-app-subtle">Study mission</p>
                 {studyReasoning ? (
@@ -496,7 +508,7 @@ export default function DashboardPage() {
                       ?
                     </button>
                     <div
-                      className={`absolute left-0 top-6 z-10 w-72 rounded-lg border border-app-border bg-white p-2 text-xs leading-relaxed text-app-fg shadow-lg ${
+                      className={`absolute left-0 top-6 z-10 w-72 rounded-lg border border-app-border bg-panel p-2 text-xs leading-relaxed text-app-fg shadow-lg ${
                         reasoningOpen ? "block" : "hidden group-hover:block group-focus-within:block"
                       }`}
                     >
@@ -509,18 +521,19 @@ export default function DashboardPage() {
             </div>
           ) : null}
         </div>
+        </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
-        <article className="rounded-2xl border border-app-border bg-panel p-5">
-          <p className="text-sm text-app-subtle">Current class</p>
+        <article className="rounded-2xl border border-app-border border-l-4 border-l-sky-500 bg-panel p-5 shadow-sm">
+          <p className="text-sm font-semibold text-sky-600 dark:text-sky-400">Current class</p>
           <p className="mt-1 text-base font-medium text-app-fg">{currentClassLabel}</p>
           {currentClass?.location ? (
             <p className="mt-1 text-sm text-app-subtle">Location: {currentClass.location}</p>
           ) : null}
         </article>
-        <article className="rounded-2xl border border-app-border bg-panel p-5">
-          <p className="text-sm text-app-subtle">Next class today</p>
+        <article className="rounded-2xl border border-app-border border-l-4 border-l-emerald-500 bg-panel p-5 shadow-sm">
+          <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Next class today</p>
           <p className="mt-1 text-base font-medium text-app-fg">{nextClassLabel}</p>
           {priorityTopic ? (
             <p className="mt-1 text-sm text-app-subtle">

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { pickCourseAccent } from "@/lib/ui/accents";
 import type { Course } from "@/lib/types/domain";
 
 type CourseCardProps = {
@@ -52,13 +53,18 @@ export function CourseCard({
   }
 
   const displayCredits = course.creditUnits ?? 3;
+  const accent = pickCourseAccent(course.id);
 
   return (
-    <article className="space-y-4 rounded-2xl border border-app-border bg-panel p-5">
+    <article className="space-y-4 overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm transition hover:shadow-md">
+      <div className={`h-1.5 bg-gradient-to-r ${accent.bar}`} />
+      <div className="space-y-4 p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-medium text-app-fg">{course.title}</h3>
-          {course.code ? <p className="text-sm text-app-subtle">{course.code}</p> : null}
+          <h3 className="text-base font-semibold text-app-fg">{course.title}</h3>
+          {course.code ? (
+            <p className="text-sm font-medium text-app-accent">{course.code}</p>
+          ) : null}
           <p className="mt-1 text-sm text-app-fg">
             {displayCredits} {displayCredits === 1 ? "credit" : "credits"}
           </p>
@@ -68,7 +74,7 @@ export function CourseCard({
             ) : null}
           </div>
         </div>
-        <span className="rounded-full bg-app-muted px-2.5 py-1 text-xs text-app-subtle">
+        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${accent.badge}`}>
           {course.topicCount} topics
         </span>
       </div>
@@ -128,7 +134,7 @@ export function CourseCard({
             <button
               type="submit"
               disabled={isSaving}
-              className="rounded-md bg-app-fg px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
+              className="rounded-md bg-app-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
             >
               {isSaving ? "Saving..." : "Save"}
             </button>
@@ -142,7 +148,7 @@ export function CourseCard({
       <div className="flex gap-2">
         <Link
           href={`/courses/${course.id}`}
-          className="inline-flex rounded-md border border-app-border bg-white px-3 py-1.5 text-sm text-app-fg hover:bg-app-muted"
+          className="inline-flex rounded-md border border-app-accent/30 bg-app-accent-soft px-3 py-1.5 text-sm font-medium text-app-accent hover:bg-app-accent-light"
         >
           Open syllabus
         </Link>
@@ -150,11 +156,12 @@ export function CourseCard({
           <button
             type="button"
             onClick={() => onStartEditing(course.id)}
-            className="inline-flex rounded-md border border-app-border bg-white px-3 py-1.5 text-sm text-app-fg hover:bg-app-muted"
+            className="inline-flex rounded-md border border-app-accent/30 bg-app-accent-soft px-3 py-1.5 text-sm font-medium text-app-accent hover:bg-app-accent-light"
           >
             Edit course
           </button>
         ) : null}
+      </div>
       </div>
     </article>
   );

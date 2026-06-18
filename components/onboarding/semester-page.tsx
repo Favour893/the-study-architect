@@ -34,8 +34,11 @@ export function SemesterPageContent() {
   if (onboardingComplete === null) {
     return (
       <div className="mx-auto w-full max-w-2xl space-y-4">
-        <div className="h-10 animate-pulse rounded-lg bg-app-muted" />
-        <div className="h-48 animate-pulse rounded-2xl bg-app-muted" />
+        <div className="h-10 animate-pulse rounded-lg bg-app-accent-light" />
+        <div className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
+          <div className="h-1.5 animate-pulse bg-gradient-to-r from-sky-500 via-violet-500 to-amber-400" />
+          <div className="h-48 animate-pulse bg-app-accent-soft/40 p-6" />
+        </div>
       </div>
     );
   }

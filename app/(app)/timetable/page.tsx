@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Clock3, Cloud, Plus } from "lucide-react";
 import { createCourse, listCourses } from "@/lib/data/courses";
+import { pickCourseAccent } from "@/lib/ui/accents";
 import { fetchTimetableFromFirestore, saveTimetableToFirestore } from "@/lib/data/timetable";
 import type { Course } from "@/lib/types/domain";
 import {
@@ -19,6 +21,15 @@ import { useSemester } from "@/providers/semester-provider";
 import { useToast } from "@/providers/toast-provider";
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+const dayAccent: Record<string, string> = {
+  Monday: "text-sky-700 dark:text-sky-300",
+  Tuesday: "text-emerald-700 dark:text-emerald-300",
+  Wednesday: "text-violet-700 dark:text-violet-300",
+  Thursday: "text-amber-700 dark:text-amber-300",
+  Friday: "text-rose-700 dark:text-rose-300",
+};
+const inputClass =
+  "rounded-md border border-app-border bg-app-accent-soft/40 px-2 py-1 text-sm text-app-fg outline-none ring-app-accent focus:bg-panel focus:ring-2";
 const defaultStartHour = DEFAULT_TIMETABLE_START_HOUR;
 const defaultEndHour = DEFAULT_TIMETABLE_END_HOUR;
 const NEW_COURSE_VALUE = "__new_course__";
@@ -121,9 +132,9 @@ export default function TimetablePage() {
   const skipNextCloudSaveRef = useRef(false);
 
   const slots = useMemo(() => buildSlots(startHour, endHour), [startHour, endHour]);
-  /** Fixed grid: day column (5rem) + one 6rem column per hour so cells never grow with text. */
+  /** Fixed grid: day column (7rem) + one 6rem column per hour so cells never grow with text. */
   const desktopTimetableWidth = useMemo(
-    () => `calc(5rem + ${slots.length} * 6rem)`,
+    () => `calc(7rem + ${slots.length} * 6rem)`,
     [slots.length],
   );
 
@@ -601,6 +612,7 @@ export default function TimetablePage() {
       if (block) {
         const isActive = editingKey === `${day}-${slot.key}`;
         const isDragging = draggingKey === `${day}-${slot.key}`;
+        const accent = pickCourseAccent(block.entry.courseId || block.entry.courseName || block.entryKey);
         return (
           <td
             key={`${day}-${slot.key}`}
@@ -630,16 +642,16 @@ export default function TimetablePage() {
                 setDraggingKey(null);
               }}
               onClick={() => openEditor(day, slot.key)}
-              className={`h-[44px] min-w-0 w-full max-w-full overflow-hidden rounded-md border bg-white px-2.5 py-2 text-left transition hover:bg-app-muted ${
-                isActive ? "border-app-accent ring-2 ring-app-accent/25" : "border-app-border"
-              } ${isDragging ? "opacity-50" : ""}`}
+              className={`h-[44px] min-w-0 w-full max-w-full overflow-hidden rounded-md border px-2.5 py-2 text-left shadow-sm transition hover:opacity-95 ${
+                isActive ? "ring-2 ring-app-accent/30" : "border-app-border/40"
+              } ${isDragging ? "opacity-50" : ""} ${accent.badge}`}
             >
               <div className="flex h-full min-w-0 w-full flex-col justify-center">
-                <p className="min-w-0 truncate text-sm font-medium leading-tight text-app-fg">
+                <p className="min-w-0 truncate text-sm font-semibold leading-tight">
                   {block.entry.courseName || "Class block"}
                 </p>
                 {block.entry.location ? (
-                  <p className="min-w-0 truncate text-[11px] leading-tight text-app-subtle">{block.entry.location}</p>
+                  <p className="min-w-0 truncate text-[11px] leading-tight opacity-75">{block.entry.location}</p>
                 ) : null}
               </div>
             </button>
@@ -667,7 +679,7 @@ export default function TimetablePage() {
               setDraggingKey(null);
             }}
             onClick={() => openEditor(day, slot.key)}
-            className={`group flex h-[44px] min-w-0 w-full max-w-full items-center justify-center overflow-hidden rounded-md border border-dashed bg-white/70 text-app-subtle transition hover:border-app-accent hover:bg-app-muted ${
+            className={`group flex h-[44px] min-w-0 w-full max-w-full items-center justify-center overflow-hidden rounded-md border border-dashed bg-app-accent-soft/30 text-app-subtle transition hover:border-app-accent hover:bg-app-accent-soft ${
               isActive ? "border-app-accent ring-2 ring-app-accent/25" : "border-app-border"
             }`}
             aria-label={`Add class for ${day} at ${slot.label}`}
@@ -721,42 +733,59 @@ export default function TimetablePage() {
   }, [cloudSyncState, lastSyncedAt]);
 
   return (
-    <div className="space-y-3">
-      <header className="space-y-1">
-        <p className="text-sm text-app-subtle">Weekly structure</p>
-        <h2 className="text-xl font-semibold text-app-fg">Timetable Grid</h2>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-app-subtle">
-          <p>Hourly grid in GMT. Default range 07:00 to 19:00.</p>
-          <span className="rounded-full bg-app-muted px-2 py-1">Saved blocks: {totalFilled}</span>
-          <span className="rounded-full bg-app-muted px-2 py-1">{syncLabel}</span>
+    <div className="space-y-5">
+      <header className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
+        <div className="h-1.5 bg-gradient-to-r from-violet-500 via-sky-500 to-emerald-500" />
+        <div className="flex flex-wrap items-start justify-between gap-4 p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-950/50">
+              <Clock3 className="h-5 w-5 text-violet-600 dark:text-violet-300" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-app-violet">Weekly structure</p>
+              <h2 className="text-xl font-semibold text-app-fg">Timetable grid</h2>
+              <p className="mt-1 text-sm text-app-subtle">Hourly grid in GMT · default 07:00–19:00</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">
+              {totalFilled} blocks
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-app-accent-soft px-2.5 py-1 text-xs font-medium text-app-accent">
+              <Cloud className="h-3 w-3" />
+              {syncLabel}
+            </span>
+          </div>
         </div>
       </header>
 
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-app-border bg-panel p-2.5">
-        <label className="flex items-center gap-2 text-sm text-app-subtle">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-app-border bg-panel p-3 shadow-sm">
+        <label className="flex items-center gap-2 text-sm font-medium text-app-accent">
           Start
           <input
             defaultValue={hourToKey(startHour)}
             onBlur={(event) => updateStartHour(event.target.value)}
-            className="w-20 rounded-md border border-app-border bg-white px-2 py-1 text-sm text-app-fg outline-none ring-app-accent focus:ring-2"
+            className={`w-20 ${inputClass}`}
+            aria-label="Timetable start hour"
           />
         </label>
-        <label className="flex items-center gap-2 text-sm text-app-subtle">
+        <label className="flex items-center gap-2 text-sm font-medium text-app-teal">
           End
           <input
             defaultValue={hourToKey(endHour)}
             onBlur={(event) => updateEndHour(event.target.value)}
-            className="w-20 rounded-md border border-app-border bg-white px-2 py-1 text-sm text-app-fg outline-none ring-app-accent focus:ring-2"
+            className={`w-20 ${inputClass}`}
+            aria-label="Timetable end hour"
           />
         </label>
         <button
           type="button"
           onClick={addHourlyColumn}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-app-border bg-white text-lg leading-none text-app-fg hover:bg-app-muted"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-app-accent to-app-violet text-white shadow-sm hover:opacity-90"
           aria-label="Add one hour column"
           title="Add one hour column"
         >
-          +
+          <Plus className="h-4 w-4" />
         </button>
       </div>
       {timeError ? <p className="text-sm text-amber-700">{timeError}</p> : null}
@@ -767,43 +796,51 @@ export default function TimetablePage() {
             No classes yet. Tap a slot on desktop/tablet to start building your week.
           </p>
         ) : (
-          mobileBlocks.map((block) => (
+          mobileBlocks.map((block) => {
+            const accent = pickCourseAccent(block.entry.courseId || block.entry.courseName || block.day);
+            return (
             <button
               key={`${block.day}-${block.slotKey}`}
               type="button"
               onClick={() => openEditor(block.day, block.slotKey)}
-              className="w-full rounded-xl border border-app-border bg-panel px-3 py-2 text-left"
+              className={`w-full overflow-hidden rounded-xl border border-app-border text-left shadow-sm ${accent.badge}`}
             >
-              <p className="text-xs text-app-subtle">
-                {block.day} - {block.label}
-              </p>
-              <p className="text-sm font-medium text-app-fg">{block.entry.courseName || "Class block"}</p>
-              {block.entry.location ? <p className="text-xs text-app-subtle">{block.entry.location}</p> : null}
+              <div className={`h-1 bg-gradient-to-r ${accent.bar}`} />
+              <div className="px-3 py-2">
+                <p className="text-xs font-medium opacity-80">
+                  {block.day} · {block.label}
+                </p>
+                <p className="text-sm font-semibold">{block.entry.courseName || "Class block"}</p>
+                {block.entry.location ? <p className="text-xs opacity-75">{block.entry.location}</p> : null}
+              </div>
             </button>
-          ))
+            );
+          })
         )}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-xl border border-app-border bg-panel md:block">
+      <div className="hidden overflow-hidden rounded-xl border border-app-border bg-panel shadow-sm md:block">
+        <div className="h-1 bg-gradient-to-r from-sky-500 via-violet-500 to-rose-500" />
+        <div className="overflow-x-auto">
         <table
-          className="table-fixed border-collapse"
+          className="table-fixed border-separate border-spacing-0"
           style={{ width: desktopTimetableWidth, minWidth: desktopTimetableWidth }}
         >
           <colgroup>
-            <col className="w-20" />
+            <col className="w-28" />
             {slots.map((slot) => (
               <col key={slot.key} className="w-24" />
             ))}
           </colgroup>
           <thead>
             <tr>
-              <th className="sticky left-0 z-10 w-20 min-w-0 border-b border-app-border bg-app-muted px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-app-subtle">
+              <th className="sticky left-0 z-20 w-28 min-w-28 border-b border-r border-app-border bg-app-accent-soft px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-app-accent shadow-[4px_0_8px_-2px_rgba(15,23,42,0.1)]">
                 Day
               </th>
               {slots.map((slot) => (
                 <th
                   key={slot.key}
-                  className="w-24 min-w-0 max-w-24 border-b border-app-border bg-app-muted px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-app-subtle"
+                  className="w-24 min-w-0 max-w-24 border-b border-app-border bg-app-violet-soft/50 px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-app-violet"
                 >
                   <span className="block truncate">{slot.label}</span>
                 </th>
@@ -813,7 +850,7 @@ export default function TimetablePage() {
           <tbody>
             {days.map((day) => (
               <tr key={day}>
-                <td className="sticky left-0 z-10 w-20 min-w-0 border-b border-app-border bg-panel px-3 py-2 text-sm font-medium text-app-fg">
+                <td className={`sticky left-0 z-20 w-28 min-w-28 whitespace-nowrap border-b border-r border-app-border bg-panel px-3 py-2 text-sm font-semibold shadow-[4px_0_8px_-2px_rgba(15,23,42,0.1)] ${dayAccent[day] ?? "text-app-fg"}`}>
                   {day}
                 </td>
                 {renderDayCells(day)}
@@ -821,11 +858,14 @@ export default function TimetablePage() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
 
       {editingKey ? (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/30 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-app-border bg-panel p-5 shadow-xl">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-app-border bg-panel shadow-xl">
+            <div className="h-1 bg-gradient-to-r from-app-accent to-app-violet" />
+            <div className="p-5">
             <h3 className="text-base font-semibold text-app-fg">Update class log</h3>
             <p className="mt-1 text-sm text-app-subtle">Press Enter to save quickly.</p>
             {coursesError ? (
@@ -936,12 +976,13 @@ export default function TimetablePage() {
                 </button>
                 <button
                   type="submit"
-                  className="rounded-md bg-app-fg px-3 py-2 text-sm font-medium text-white hover:opacity-90"
+                  className="rounded-md bg-gradient-to-r from-app-accent to-app-violet px-3 py-2 text-sm font-medium text-white hover:opacity-95"
                 >
                   Save
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       ) : null}

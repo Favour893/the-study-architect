@@ -1,39 +1,20 @@
 "use client";
 
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { updateUserProfileProgramme } from "@/lib/data/semesters";
 import { createAccountWithEmail, signInWithEmail, signInWithGoogle } from "@/lib/firebase/auth";
 import { getFirebaseConfigStatus, hasFirebaseConfig } from "@/lib/firebase/client";
 
+import { humanizeAuthError } from "@/lib/firebase/auth-errors";
+
 type AuthMode = "sign-in" | "create-account";
 
-function humanizeAuthError(error: unknown) {
-  const code =
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    typeof (error as { code?: unknown }).code === "string"
-      ? (error as { code: string }).code
-      : "";
+type AuthFormProps = {
+  initialError?: string | null;
+};
 
-  if (code === "auth/invalid-credential") {
-    return "Invalid credential. Check Firebase web config values and Google provider setup for this deployment.";
-  }
-  if (code === "auth/unauthorized-domain") {
-    return "This domain is not authorized in Firebase Auth. Add your Vercel domain in Firebase Authentication settings.";
-  }
-  if (code === "auth/popup-closed-by-user") {
-    return "Google sign-in popup was closed before completion. Try again.";
-  }
-  if (code === "auth/network-request-failed") {
-    return "Network request failed. Check your internet connection and try again.";
-  }
-
-  return error instanceof Error ? error.message : "Unable to continue. Try again.";
-}
-
-export function AuthForm() {
+export function AuthForm({ initialError = null }: AuthFormProps) {
   const { missingConfig } = getFirebaseConfigStatus();
 
   const [mode, setMode] = useState<AuthMode>("sign-in");
@@ -41,7 +22,13 @@ export function AuthForm() {
   const [password, setPassword] = useState("");
   const [programmeOfStudy, setProgrammeOfStudy] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
+
+  useEffect(() => {
+    if (initialError) {
+      setError(initialError);
+    }
+  }, [initialError]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,13 +59,12 @@ export function AuthForm() {
       await signInWithGoogle();
     } catch (googleError) {
       setError(humanizeAuthError(googleError));
-    } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-app-border bg-panel p-6 shadow-sm">
+    <div className="w-full max-w-md rounded-2xl border border-white/60 bg-panel p-6 shadow-xl shadow-blue-900/10 ring-1 ring-app-border/80">
       {!hasFirebaseConfig ? (
         <p className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
           Firebase is not configured yet. Add values in <code>.env.local</code>:{" "}
@@ -105,7 +91,7 @@ export function AuthForm() {
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-lg border border-app-border bg-white px-3 py-2 outline-none ring-app-accent transition focus:ring-2"
+            className="w-full rounded-lg border border-app-border bg-app-accent-soft/50 px-3 py-2 outline-none ring-app-accent transition focus:bg-panel focus:ring-2"
             placeholder="you@example.com"
           />
         </label>
@@ -118,7 +104,7 @@ export function AuthForm() {
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-lg border border-app-border bg-white px-3 py-2 outline-none ring-app-accent transition focus:ring-2"
+            className="w-full rounded-lg border border-app-border bg-app-accent-soft/50 px-3 py-2 outline-none ring-app-accent transition focus:bg-panel focus:ring-2"
             placeholder="At least 6 characters"
           />
         </label>
@@ -130,7 +116,7 @@ export function AuthForm() {
               type="text"
               value={programmeOfStudy}
               onChange={(event) => setProgrammeOfStudy(event.target.value)}
-              className="w-full rounded-lg border border-app-border bg-white px-3 py-2 outline-none ring-app-accent transition focus:ring-2"
+              className="w-full rounded-lg border border-app-border bg-app-accent-soft/50 px-3 py-2 outline-none ring-app-accent transition focus:bg-panel focus:ring-2"
               placeholder="e.g. BSc Computer Science"
             />
             <span className="text-xs text-app-subtle">You can add or change this later from your account menu.</span>
@@ -144,7 +130,7 @@ export function AuthForm() {
         <button
           type="submit"
           disabled={isSubmitting || !hasFirebaseConfig}
-          className="w-full rounded-lg bg-app-fg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+          className="w-full rounded-lg bg-app-accent px-3 py-2.5 text-sm font-medium text-white shadow-sm shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting
             ? "Please wait..."
@@ -160,9 +146,9 @@ export function AuthForm() {
         type="button"
         onClick={handleGoogle}
         disabled={isSubmitting || !hasFirebaseConfig}
-        className="w-full rounded-lg border border-app-border bg-white px-3 py-2 text-sm font-medium text-app-fg transition hover:bg-app-muted disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full rounded-lg border border-app-border bg-panel px-3 py-2.5 text-sm font-medium text-app-fg transition hover:bg-app-accent-soft disabled:cursor-not-allowed disabled:opacity-60"
       >
-        Continue with Google
+        {isSubmitting ? "Opening Google sign-in..." : "Continue with Google"}
       </button>
     </div>
   );

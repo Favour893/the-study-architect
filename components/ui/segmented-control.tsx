@@ -59,7 +59,7 @@ export function SegmentedControl<T extends string>({
 
   return (
     <div className={`flex min-w-0 items-center ${className}`} role="group" aria-label={ariaLabel}>
-      <div className="inline-flex rounded-lg bg-app-muted p-1" role="tablist">
+      <div className="inline-flex rounded-lg bg-app-accent-soft p-1 ring-1 ring-app-border/60" role="tablist">
         {options.map((opt, i) => (
           <button
             key={opt.value}
@@ -71,8 +71,10 @@ export function SegmentedControl<T extends string>({
             id={`${baseId}-tab-${opt.value}`}
             aria-selected={value === opt.value}
             tabIndex={value === opt.value ? 0 : -1}
-            className={`rounded-md px-3 py-1.5 text-sm ${
-              value === opt.value ? "bg-white text-app-fg shadow-sm" : "text-app-subtle"
+            className={`rounded-md px-3 py-1.5 text-sm transition ${
+              value === opt.value
+                ? "bg-app-accent text-white shadow-sm"
+                : "text-app-subtle hover:text-app-accent"
             }`}
             onClick={() => onChange(opt.value)}
             onKeyDown={handleTabKeyDown}

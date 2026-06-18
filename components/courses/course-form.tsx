@@ -58,7 +58,6 @@ export function CourseForm({ onCreate }: CourseFormProps) {
         onChange={(event) => setCreditUnits(Number(event.target.value) || 3)}
         placeholder="Credits"
         className="rounded-lg border border-app-border bg-white px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
-        title="Credit units"
       />
       <input
         value={lecturerName}

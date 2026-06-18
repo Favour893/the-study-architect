@@ -26,10 +26,13 @@ export function AppShell({ children }: AppShellProps) {
       <div className="flex h-full w-full">
         <SidebarNav items={navItems} />
         <main className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col">
-          <header className="z-10 flex h-14 min-w-0 shrink-0 items-center justify-between gap-2 border-b border-app-border bg-app/80 px-3 backdrop-blur md:px-6">
+          <header className="relative z-10 flex h-14 min-w-0 shrink-0 items-center justify-between gap-2 border-b border-app-border bg-panel/90 px-3 shadow-sm backdrop-blur md:px-6">
+            <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-sky-500 via-violet-500 to-amber-400" />
             <div className="min-w-0 pr-2">
-              <p className="text-xs text-app-subtle">The Study Architect</p>
-              <h1 className="truncate text-sm font-medium text-app-fg">Keep it simple. Keep it moving.</h1>
+              <p className="bg-gradient-to-r from-app-accent via-app-violet to-app-teal bg-clip-text text-xs font-semibold text-transparent">
+                The Study Architect
+              </p>
+              <h1 className="truncate text-sm font-medium text-app-fg">Plan smart. Study well.</h1>
             </div>
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
               {semesters.length > 0 ? (
@@ -39,7 +42,7 @@ export function AppShell({ children }: AppShellProps) {
                     value={activeSemesterId ?? ""}
                     disabled={semesterLoading}
                     onChange={(event) => void setActiveSemester(event.target.value)}
-                    className="min-w-0 flex-1 truncate rounded-md border border-app-border bg-white px-2 py-1.5 text-xs text-app-fg outline-none ring-app-accent focus:ring-2 sm:text-sm"
+                    className="min-w-0 flex-1 truncate rounded-md border border-app-border bg-app-accent-soft px-2 py-1.5 text-xs text-app-fg outline-none ring-app-accent focus:ring-2 sm:text-sm"
                   >
                     {semesters.map((sem) => (
                       <option key={sem.id} value={sem.id}>

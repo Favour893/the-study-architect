@@ -1,13 +1,63 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8f8f7;
-  --foreground: #1c1c1a;
+  --background: #eef3fc;
+  --foreground: #0f172a;
   --panel: #ffffff;
-  --muted: #f0f0ed;
-  --subtle: #6f6f67;
-  --border: #e4e4de;
-  --accent: #6366f1;
+  --muted: #e2eaf8;
+  --subtle: #475569;
+  --border: #c7d5ee;
+  --accent: #2563eb;
+  --accent-dark: #1e3a8a;
+  --accent-light: #dbeafe;
+  --accent-soft: #eff6ff;
+  --success: #059669;
+  --success-soft: #ecfdf5;
+  --warning: #d97706;
+  --warning-soft: #fffbeb;
+  --info: #0284c7;
+  --info-soft: #e0f2fe;
+  --violet: #7c3aed;
+  --violet-soft: #f3e8ff;
+  --coral: #e11d48;
+  --coral-soft: #fff1f2;
+  --teal: #0d9488;
+  --teal-soft: #f0fdfa;
+  --amber: #f59e0b;
+  --amber-soft: #fffbeb;
+  --sidebar: #152a5e;
+  --sidebar-fg: #f8fafc;
+  --sidebar-muted: #bfdbfe;
+}
+
+.dark {
+  --background: #0a1020;
+  --foreground: #e8eef8;
+  --panel: #111a2e;
+  --muted: #1a2740;
+  --subtle: #94a3b8;
+  --border: #2a3a5c;
+  --accent: #3b82f6;
+  --accent-dark: #1e3a8a;
+  --accent-light: #1e3a5f;
+  --accent-soft: #152238;
+  --success: #34d399;
+  --success-soft: #0d2818;
+  --warning: #fbbf24;
+  --warning-soft: #2a2008;
+  --info: #38bdf8;
+  --info-soft: #0c2340;
+  --violet: #a78bfa;
+  --violet-soft: #1f1538;
+  --coral: #fb7185;
+  --coral-soft: #2a1018;
+  --teal: #2dd4bf;
+  --teal-soft: #0a2420;
+  --amber: #fbbf24;
+  --amber-soft: #2a2008;
+  --sidebar: #0c1528;
+  --sidebar-fg: #f1f5f9;
+  --sidebar-muted: #93c5fd;
 }
 
 @theme inline {
@@ -20,12 +70,45 @@
   --color-app-subtle: var(--subtle);
   --color-app-border: var(--border);
   --color-app-accent: var(--accent);
+  --color-app-accent-dark: var(--accent-dark);
+  --color-app-accent-light: var(--accent-light);
+  --color-app-accent-soft: var(--accent-soft);
+  --color-app-success: var(--success);
+  --color-app-success-soft: var(--success-soft);
+  --color-app-warning: var(--warning);
+  --color-app-warning-soft: var(--warning-soft);
+  --color-app-info: var(--info);
+  --color-app-info-soft: var(--info-soft);
+  --color-app-violet: var(--violet);
+  --color-app-violet-soft: var(--violet-soft);
+  --color-app-coral: var(--coral);
+  --color-app-coral-soft: var(--coral-soft);
+  --color-app-teal: var(--teal);
+  --color-app-teal-soft: var(--teal-soft);
+  --color-app-amber: var(--amber);
+  --color-app-amber-soft: var(--amber-soft);
+  --color-app-sidebar: var(--sidebar);
+  --color-app-sidebar-fg: var(--sidebar-fg);
+  --color-app-sidebar-muted: var(--sidebar-muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
   background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse 70% 55% at 10% -10%, rgba(37, 99, 235, 0.14), transparent),
+    radial-gradient(ellipse 55% 45% at 95% 5%, rgba(124, 58, 237, 0.1), transparent),
+    radial-gradient(ellipse 50% 40% at 80% 95%, rgba(13, 148, 136, 0.08), transparent),
+    radial-gradient(ellipse 45% 35% at 5% 90%, rgba(245, 158, 11, 0.07), transparent);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.dark body {
+  background-image:
+    radial-gradient(ellipse 70% 55% at 10% -10%, rgba(59, 130, 246, 0.1), transparent),
+    radial-gradient(ellipse 55% 45% at 95% 5%, rgba(167, 139, 250, 0.08), transparent),
+    radial-gradient(ellipse 50% 40% at 80% 95%, rgba(45, 212, 191, 0.06), transparent),
+    radial-gradient(ellipse 45% 35% at 5% 90%, rgba(251, 191, 36, 0.05), transparent);
 }

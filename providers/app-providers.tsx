@@ -2,6 +2,7 @@
 
 import { FocusSelectProvider } from "@/providers/focus-select-provider";
 import { AuthProvider } from "@/providers/auth-provider";
+import { ThemeProvider } from "@/providers/theme-provider";
 
 type AppProvidersProps = {
   children: React.ReactNode;
@@ -9,8 +10,10 @@ type AppProvidersProps = {
 
 export function AppProviders({ children }: AppProvidersProps) {
   return (
-    <AuthProvider>
-      <FocusSelectProvider>{children}</FocusSelectProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <FocusSelectProvider>{children}</FocusSelectProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

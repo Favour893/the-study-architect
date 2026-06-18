@@ -149,7 +149,7 @@ export default function CoursesPage() {
   return (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <header className="shrink-0 space-y-0.5">
-        <p className="text-xs text-app-subtle">Semester vault</p>
+        <p className="text-xs font-medium text-app-accent">Semester vault</p>
         <h2 className="text-lg font-semibold text-app-fg">Course Cards</h2>
       </header>
 
@@ -161,15 +161,15 @@ export default function CoursesPage() {
 
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         {courses.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-app-border bg-panel p-6 text-center">
-            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-app-muted">
-              <Sparkles className="h-6 w-6 text-app-subtle" />
+          <div className="rounded-2xl border border-dashed border-app-accent/40 bg-app-accent-soft/40 p-6 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-app-accent-light">
+              <Sparkles className="h-6 w-6 text-app-accent" />
             </div>
             <p className="text-sm text-app-subtle">No courses yet. Add your first course to begin.</p>
             <button
               type="button"
               onClick={() => void handleCreateSampleCourse()}
-              className="mt-3 rounded-lg border border-app-border bg-white px-3 py-2 text-sm font-medium text-app-fg hover:bg-app-muted"
+              className="mt-3 rounded-lg bg-app-accent px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
             >
               Add sample course
             </button>

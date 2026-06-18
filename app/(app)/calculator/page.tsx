@@ -8,15 +8,17 @@ import {
   reconcileCalculatorRowsWithCourses,
   saveCalculatorState,
   type CalculatorRowGrade,
-  type CalculatorStoredLetter,
   type CalculatorStoredRow,
   type CalculatorStoredMode,
   type CalculatorStoredScale,
-  type CalculatorStoredState,
 } from "@/lib/calculator-storage";
 import {
+  formatSemesterMark,
+  roundGpaTwoDecimals,
+  semesterMarkFromRows,
+} from "@/lib/calculator-math";
+import {
   fetchCalculatorFromFirestore,
-  fetchCalculatorStateResolved,
   saveCalculatorToFirestore,
 } from "@/lib/data/calculator-firestore";
 import { listCourses } from "@/lib/data/courses";
@@ -28,6 +30,8 @@ import { useToast } from "@/providers/toast-provider";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Calculator, Sigma, TrendingUp } from "lucide-react";
+import { pickCourseAccent } from "@/lib/ui/accents";
 
 function vaultCourseLabel(course: Pick<Course, "title" | "code">) {
   return course.code?.trim() ? `${course.title} (${course.code})` : course.title;
@@ -37,87 +41,27 @@ type Mode = CalculatorStoredMode;
 type GradeScale = CalculatorStoredScale;
 type CourseRow = CalculatorStoredRow;
 
-function gradePointFromLetter(grade: CalculatorStoredLetter, scale: GradeScale) {
-  if (scale === "5.0") {
-    const mapping: Record<CalculatorStoredLetter, number> = {
-      A: 5,
-      "B+": 4.5,
-      B: 4,
-      "C+": 3.5,
-      C: 3,
-      "D+": 2.5,
-      D: 2,
-      E: 1,
-      F: 0,
-    };
-    return mapping[grade];
-  }
-
-  const mapping: Record<CalculatorStoredLetter, number> = {
-    A: 4,
-    "B+": 3.5,
-    B: 3,
-    "C+": 2.5,
-    C: 2,
-    "D+": 1.5,
-    D: 1,
-    E: 0.5,
-    F: 0,
-  };
-  return mapping[grade];
-}
-
-function gradeScoreEquivalent(grade: CalculatorStoredLetter) {
-  const mapping: Record<CalculatorStoredLetter, number> = {
-    A: 85,
-    "B+": 75,
-    B: 65,
-    "C+": 57,
-    C: 52,
-    "D+": 47,
-    D: 42,
-    E: 35,
-    F: 20,
-  };
-  return mapping[grade];
-}
-
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-/** GPA values are always shown and stored with exactly two decimal places. */
-function roundGpaTwoDecimals(value: number): number {
-  return Number(value.toFixed(2));
-}
+const inputClass =
+  "rounded-md border border-app-border bg-app-accent-soft/40 px-3 py-2 text-sm text-app-fg outline-none ring-app-accent focus:bg-panel focus:ring-2";
 
-function priorMarkFromSavedState(state: CalculatorStoredState, displayMode: Mode): number | null {
-  if (state.mode !== displayMode) {
-    return null;
+function gradeSelectClass(grade: CalculatorRowGrade) {
+  if (!grade) {
+    return inputClass;
   }
-  const hasGrades = state.rows.some((r) => isSetLetterGrade(r.grade));
-  if (!hasGrades) {
-    return null;
+  if (grade.startsWith("A")) {
+    return `${inputClass} border-emerald-300 bg-emerald-50 font-medium text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300`;
   }
-  const pa = state.pastAverage;
-  if (typeof pa !== "number" || Number.isNaN(pa)) {
-    return null;
+  if (grade.startsWith("B")) {
+    return `${inputClass} border-sky-300 bg-sky-50 font-medium text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300`;
   }
-  return displayMode === "GPA" ? roundGpaTwoDecimals(pa) : Number(pa.toFixed(2));
-}
-
-function suggestedLetterForSemesterTarget(target: number, scale: GradeScale): CalculatorStoredLetter {
-  let best: CalculatorStoredLetter = "C";
-  let bestDiff = Infinity;
-  for (const letter of CALCULATOR_LETTER_GRADES) {
-    const p = gradePointFromLetter(letter, scale);
-    const d = Math.abs(p - target);
-    if (d < bestDiff) {
-      bestDiff = d;
-      best = letter;
-    }
+  if (grade.startsWith("C")) {
+    return `${inputClass} border-amber-300 bg-amber-50 font-medium text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300`;
   }
-  return best;
+  return `${inputClass} border-rose-300 bg-rose-50 font-medium text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300`;
 }
 
 function applyDefaultCalculatorState() {
@@ -125,14 +69,13 @@ function applyDefaultCalculatorState() {
     mode: "GPA" as Mode,
     gradeScale: "5.0" as GradeScale,
     rows: createDefaultCalculatorRows(),
-    targetSemesterGpa: 4,
   };
 }
 
 export default function CalculatorPage() {
   const { user } = useAuth();
   const { pushToast } = useToast();
-  const { activeSemesterId, semesters, isLoading: semesterLoading } = useSemester();
+  const { activeSemesterId, isLoading: semesterLoading } = useSemester();
   const [semesterCourses, setSemesterCourses] = useState<Course[]>([]);
   const [coursesListReady, setCoursesListReady] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -142,26 +85,6 @@ export default function CalculatorPage() {
   const [mode, setMode] = useState<Mode>("GPA");
   const [gradeScale, setGradeScale] = useState<GradeScale>("5.0");
   const [rows, setRows] = useState<CourseRow[]>([]);
-  const [targetSemesterGpa, setTargetSemesterGpa] = useState(4);
-  const [targetGpaText, setTargetGpaText] = useState("4");
-  const [priorSnapshotMarks, setPriorSnapshotMarks] = useState<number[]>([]);
-  const [priorSnapshotsLoading, setPriorSnapshotsLoading] = useState(false);
-
-  const scaleMax = gradeScale === "5.0" ? 5 : 4;
-
-  const activeSemesterName = useMemo(() => {
-    if (!activeSemesterId) {
-      return "this semester";
-    }
-    return semesters.find((s) => s.id === activeSemesterId)?.name ?? "this semester";
-  }, [activeSemesterId, semesters]);
-
-  const priorSemesters = useMemo(() => {
-    if (!activeSemesterId) {
-      return semesters;
-    }
-    return semesters.filter((s) => s.id !== activeSemesterId);
-  }, [semesters, activeSemesterId]);
 
   const creditsFromCourseRows = useMemo(
     () => rows.reduce((sum, row) => sum + clamp(row.units || 0, 0, 30), 0),
@@ -175,88 +98,9 @@ export default function CalculatorPage() {
   }, [rows]);
 
   const currentResult = useMemo(() => {
-    const gradedRows = rows.filter((row) => isSetLetterGrade(row.grade));
-    const totalUnits = gradedRows.reduce((sum, row) => sum + clamp(row.units || 0, 0, 30), 0);
-    if (totalUnits <= 0) {
-      return 0;
-    }
-
-    if (mode === "GPA") {
-      const weightedPoints = gradedRows.reduce((sum, row) => {
-        if (!isSetLetterGrade(row.grade)) {
-          return sum;
-        }
-        const gp = gradePointFromLetter(row.grade, gradeScale);
-        return sum + gp * clamp(row.units || 0, 0, 30);
-      }, 0);
-      return weightedPoints / totalUnits;
-    }
-
-    const weightedScore = gradedRows.reduce((sum, row) => {
-      if (!isSetLetterGrade(row.grade)) {
-        return sum;
-      }
-      return sum + gradeScoreEquivalent(row.grade) * clamp(row.units || 0, 0, 30);
-    }, 0);
-    return weightedScore / totalUnits;
+    const mark = semesterMarkFromRows(rows, mode, gradeScale);
+    return mark ?? 0;
   }, [rows, mode, gradeScale]);
-
-  const cumulativeForecasterMark = useMemo(() => {
-    if (priorSemesters.length === 0) {
-      if (gradedCreditsThisSemester <= 0) {
-        return null;
-      }
-      return mode === "GPA" ? roundGpaTwoDecimals(currentResult) : Number(currentResult.toFixed(2));
-    }
-    if (priorSnapshotMarks.length === 0) {
-      return null;
-    }
-    const sum = priorSnapshotMarks.reduce((a, b) => a + b, 0);
-    return mode === "GPA"
-      ? roundGpaTwoDecimals(sum / priorSnapshotMarks.length)
-      : Number((sum / priorSnapshotMarks.length).toFixed(2));
-  }, [
-    priorSemesters.length,
-    priorSnapshotMarks,
-    mode,
-    currentResult,
-    gradedCreditsThisSemester,
-  ]);
-
-  useEffect(() => {
-    if (!user || priorSemesters.length === 0) {
-      setPriorSnapshotMarks([]);
-      setPriorSnapshotsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setPriorSnapshotsLoading(true);
-
-    void Promise.all(
-      priorSemesters.map((s) => fetchCalculatorStateResolved(user.uid, s.id)),
-    ).then((list) => {
-      if (cancelled) {
-        return;
-      }
-      const marks: number[] = [];
-      for (const st of list) {
-        if (!st) {
-          continue;
-        }
-        const m = priorMarkFromSavedState(st, mode);
-        if (m !== null) {
-          marks.push(m);
-        }
-      }
-      setPriorSnapshotMarks(marks);
-      setPriorSnapshotsLoading(false);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user, priorSemesters, mode]);
 
   useEffect(() => {
     if (semesterLoading) {
@@ -270,11 +114,6 @@ export default function CalculatorPage() {
       setMode(next.mode);
       setGradeScale(next.gradeScale);
       setRows(next.rows);
-      setTargetSemesterGpa(
-        next.mode === "GPA"
-          ? roundGpaTwoDecimals(next.targetSemesterGpa)
-          : next.targetSemesterGpa,
-      );
     }
 
     async function hydrate() {
@@ -347,7 +186,6 @@ export default function CalculatorPage() {
             mode: next.mode,
             gradeScale: next.gradeScale,
             rows: next.rows,
-            targetSemesterGpa: next.targetSemesterGpa,
           });
         } else {
           applyState(applyDefaultCalculatorState());
@@ -478,8 +316,11 @@ export default function CalculatorPage() {
       gradeScale,
       rows,
       pastCredits: creditsFromCourseRows,
-      pastAverage: mode === "GPA" ? roundGpaTwoDecimals(currentResult) : currentResult,
-      targetSemesterGpa: mode === "GPA" ? roundGpaTwoDecimals(targetSemesterGpa) : targetSemesterGpa,
+      pastAverage:
+        mode === "GPA"
+          ? roundGpaTwoDecimals(currentResult)
+          : formatSemesterMark(currentResult, mode),
+      targetSemesterGpa: 0,
     };
     saveCalculatorState(user.uid, activeSemesterId, payload);
     const timer = window.setTimeout(() => {
@@ -504,22 +345,8 @@ export default function CalculatorPage() {
     rows,
     creditsFromCourseRows,
     currentResult,
-    targetSemesterGpa,
     pushToast,
   ]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (mode === "GPA") {
-        setTargetGpaText(
-          targetSemesterGpa <= 0 ? "" : String(roundGpaTwoDecimals(targetSemesterGpa)),
-        );
-      } else {
-        setTargetGpaText(targetSemesterGpa <= 0 ? "" : String(Math.round(targetSemesterGpa)));
-      }
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [targetSemesterGpa, mode, activeSemesterId]);
 
   function updateRow(id: string, next: Partial<CourseRow>) {
     setRows((current) => current.map((row) => (row.id === id ? { ...row, ...next } : row)));
@@ -538,72 +365,54 @@ export default function CalculatorPage() {
 
   function switchMode(nextMode: Mode) {
     setMode(nextMode);
-    setTargetSemesterGpa(nextMode === "GPA" ? 4 : 70);
-  }
-
-  function commitTargetGpaText() {
-    const trimmed = targetGpaText.trim();
-    if (trimmed === "") {
-      setTargetSemesterGpa(0);
-      setTargetGpaText("");
-      return;
-    }
-    const n = Number.parseFloat(trimmed.replace(",", "."));
-    if (Number.isNaN(n)) {
-      setTargetGpaText(
-        targetSemesterGpa <= 0
-          ? ""
-          : mode === "GPA"
-            ? String(roundGpaTwoDecimals(targetSemesterGpa))
-            : String(Math.round(targetSemesterGpa)),
-      );
-      return;
-    }
-    const c = clamp(n, 0, mode === "GPA" ? scaleMax : 100);
-    const rounded = mode === "GPA" ? roundGpaTwoDecimals(c) : Number(c.toFixed(2));
-    setTargetSemesterGpa(rounded);
-    setTargetGpaText(mode === "GPA" ? String(rounded) : String(Math.round(rounded)));
   }
 
   if (!hydrated) {
     return (
       <div className="space-y-5">
-        <header className="space-y-1">
-          <p className="text-sm text-app-subtle">Predictive Engine</p>
-          <h2 className="text-xl font-semibold text-app-fg">Grade Calculator</h2>
-        </header>
-        <div className="h-44 animate-pulse rounded-2xl bg-app-muted" />
-        <div className="h-52 animate-pulse rounded-2xl bg-app-muted" />
+        <div className="h-10 animate-pulse rounded-lg bg-app-accent-light" />
+        <div className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
+          <div className="h-1.5 animate-pulse bg-gradient-to-r from-amber-500 via-violet-500 to-emerald-500" />
+          <div className="h-44 animate-pulse bg-app-accent-soft/40 p-6" />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-5">
-      <header className="space-y-1">
-        <p className="text-sm text-app-subtle">Predictive Engine</p>
-        <h2 className="text-xl font-semibold text-app-fg">Grade Calculator</h2>
-        <p className="text-sm text-app-subtle">
-          {isVaultSemester
-            ? "Credits come from each course on the Courses page. Grades start unset until you enter them. Use Target forecaster for cumulative GPA, semester goal, and a study plan."
-            : "Step 1: Add courses with units and letter grades. Step 2: Use Target forecaster for cumulative GPA and your semester goal."}
-        </p>
-        {user && activeSemesterId ? (
-          <p className="text-xs text-app-subtle">
-            {hasFirebaseConfig
-              ? "Synced to your account and saved on this device for the semester selected in the header."
-              : "Saved on this device for the semester selected in the header (add Firebase env vars to sync to the cloud)."}
-          </p>
-        ) : user ? (
-          <p className="text-xs text-amber-800">
-            No active semester yet, so entries are not tied to a semester vault. Complete onboarding or pick a semester
-            in the header.
-          </p>
-        ) : null}
+      <header className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
+        <div className="h-1.5 bg-gradient-to-r from-amber-500 via-violet-500 to-emerald-500" />
+        <div className="flex items-start gap-4 p-5">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950/50">
+            <Sigma className="h-5 w-5 text-amber-700 dark:text-amber-300" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">Predictive engine</p>
+            <h2 className="text-xl font-semibold text-app-fg">Grade calculator</h2>
+            <p className="mt-1 text-sm text-app-subtle">
+              {isVaultSemester
+                ? "Credits from your Courses page. Set letter grades to see your semester average."
+                : "Add courses with units and grades to calculate your semester average."}
+            </p>
+            {user && activeSemesterId ? (
+              <p className="mt-2 text-xs text-app-subtle">
+                {hasFirebaseConfig
+                  ? "Synced to your account for the semester in the header."
+                  : "Saved on this device for the selected semester."}
+              </p>
+            ) : user ? (
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+                No active semester — complete onboarding or pick one in the header.
+              </p>
+            ) : null}
+          </div>
+        </div>
       </header>
 
-      <section className="rounded-2xl border border-app-border bg-panel p-4">
-        <div className="flex flex-wrap items-center gap-3">
+      <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
+        <div className="h-1 bg-gradient-to-r from-app-accent to-app-violet" />
+        <div className="flex flex-wrap items-center gap-3 p-4">
           <SegmentedControl
             value={mode}
             onChange={(next) => switchMode(next)}
@@ -628,14 +437,19 @@ export default function CalculatorPage() {
         </div>
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-app-border bg-panel p-4">
+      <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
+        <div className="h-1 bg-gradient-to-r from-emerald-500 to-sky-500" />
+        <div className="space-y-3 p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-medium text-app-fg">Current semester courses</h3>
+          <div className="flex items-center gap-2">
+            <Calculator className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-base font-semibold text-app-fg">Current semester courses</h3>
+          </div>
           {!isVaultSemester ? (
             <button
               type="button"
               onClick={addRow}
-              className="rounded-md border border-app-border bg-white px-3 py-1.5 text-sm text-app-fg hover:bg-app-muted"
+              className="rounded-md bg-app-accent px-3 py-1.5 text-sm font-medium text-white hover:opacity-90"
             >
               Add course
             </button>
@@ -647,7 +461,7 @@ export default function CalculatorPage() {
         ) : null}
 
         {isVaultSemester && coursesListReady && !hasVaultCourses ? (
-          <p className="rounded-xl border border-dashed border-app-border bg-white px-4 py-3 text-sm text-app-subtle">
+          <p className="rounded-xl border border-dashed border-emerald-300 bg-app-success-soft/40 px-4 py-3 text-sm text-app-subtle dark:border-emerald-800">
             No courses in this semester yet. Add them on the{" "}
             <Link href="/courses" className="font-medium text-app-accent underline-offset-2 hover:underline">
               Courses
@@ -665,15 +479,18 @@ export default function CalculatorPage() {
 
         {rows.map((row) => {
           const vaultMeta = hasVaultCourses ? semesterCourses.find((c) => c.id === row.id) : undefined;
+          const accent = pickCourseAccent(row.id);
           return (
-            <div key={row.id} className="grid gap-2 rounded-xl border border-app-border bg-white p-3 md:grid-cols-12">
+            <div key={row.id} className="overflow-hidden rounded-xl border border-app-border bg-panel shadow-sm">
+              <div className={`h-1 bg-gradient-to-r ${accent.bar}`} />
+              <div className="grid gap-2 p-3 md:grid-cols-12">
               <div className="space-y-2 md:col-span-6">
                 {!isVaultSemester ? (
                   <input
                     value={row.title}
                     onChange={(event) => updateRow(row.id, { title: event.target.value })}
                     placeholder="e.g. Engineering Mathematics 1"
-                    className="w-full rounded-md border border-app-border px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
+                    className={`w-full ${inputClass}`}
                   />
                 ) : vaultMeta ? (
                   <p className="rounded-md border border-transparent px-1 py-2 text-sm font-medium leading-snug text-app-fg">
@@ -685,7 +502,7 @@ export default function CalculatorPage() {
               </div>
               {isVaultSemester ? (
                 <p
-                  className={`md:col-span-3 rounded-md border border-app-border bg-app-muted px-3 py-2 text-sm text-app-fg`}
+                  className={`md:col-span-3 rounded-md border border-app-border px-3 py-2 text-sm ${accent.badge}`}
                 >
                   {row.units} {row.units === 1 ? "credit" : "credits"}
                 </p>
@@ -699,7 +516,7 @@ export default function CalculatorPage() {
                     updateRow(row.id, { units: clamp(Number(event.target.value) || 0, 0, 30) })
                   }
                   placeholder="e.g. 3"
-                  className={`${isVaultSemester ? "md:col-span-3" : "md:col-span-2"} rounded-md border border-app-border px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2`}
+                  className={`${isVaultSemester ? "md:col-span-2" : "md:col-span-2"} ${inputClass}`}
                 />
               )}
               <select
@@ -707,7 +524,8 @@ export default function CalculatorPage() {
                 onChange={(event) =>
                   updateRow(row.id, { grade: event.target.value as CalculatorRowGrade })
                 }
-                className={`${isVaultSemester ? "md:col-span-3" : "md:col-span-2"} rounded-md border border-app-border px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2`}
+                className={`${isVaultSemester ? "md:col-span-3" : "md:col-span-2"} ${gradeSelectClass(row.grade)}`}
+                aria-label="Letter grade"
               >
                 <option value="">Not set</option>
                 {CALCULATOR_LETTER_GRADES.map((grade) => (
@@ -725,143 +543,33 @@ export default function CalculatorPage() {
                   Remove
                 </button>
               ) : null}
+              </div>
             </div>
           );
         })}
 
-        <div className="rounded-xl bg-app-muted px-4 py-3">
-          <p className="text-sm text-app-subtle">Current semester {mode}</p>
-          <p className="text-xl font-semibold text-app-fg">
-            {gradedCreditsThisSemester <= 0
-              ? "—"
-              : mode === "GPA"
-                ? roundGpaTwoDecimals(currentResult).toFixed(2)
-                : currentResult.toFixed(2)}
-          </p>
-          {gradedCreditsThisSemester <= 0 ? (
-            <p className="mt-1 text-xs text-app-subtle">
-              Grades start unset for a new term — choose a letter when you have a mark.
-            </p>
-          ) : null}
-        </div>
-      </section>
-
-      <section className="space-y-3 rounded-2xl border border-app-border bg-panel p-4">
-        <h3 className="text-base font-medium text-app-fg">Target forecaster</h3>
-        <p className="text-sm text-app-subtle">
-          Credits match your Courses page. Cumulative {mode} uses saved calculator data from other terms (same{" "}
-          {mode} mode). When this is your first term, it matches your current-semester average above. Set your target for{" "}
-          <span className="font-medium text-app-fg">{activeSemesterName}</span> by typing in the field (no spinner
-          arrows). We then build a per-course study plan.
-        </p>
-        <div className="grid gap-2 text-xs uppercase tracking-wide text-app-subtle md:grid-cols-3">
-          <p>Credits (from courses above)</p>
-          <p>Cumulative {mode}</p>
-          <p>
-            Target {mode} for {activeSemesterName}
-          </p>
-        </div>
-        <div className="grid gap-2 md:grid-cols-3">
-          <input
-            type="number"
-            min={0}
-            readOnly
-            tabIndex={-1}
-            value={creditsFromCourseRows}
-            aria-readonly="true"
-            className="cursor-default rounded-md border border-app-border bg-app-muted px-3 py-2 text-sm text-app-fg outline-none"
-          />
-          <div
-            className="flex flex-col justify-center rounded-md border border-app-border bg-app-muted px-3 py-2 text-sm text-app-fg"
-            title={
-              priorSemesters.length === 0
-                ? "First term: same as current semester average when you have grades"
-                : "Average of saved prior-term calculator snapshots (current term excluded)"
-            }
-          >
-            <span className="text-lg font-semibold leading-tight">
-              {priorSnapshotsLoading && priorSemesters.length > 0
-                ? "…"
-                : cumulativeForecasterMark === null
+        <div className="overflow-hidden rounded-xl border border-app-border bg-gradient-to-br from-app-accent-soft via-app-violet-soft to-app-teal-soft shadow-sm">
+          <div className="h-1 bg-gradient-to-r from-app-accent to-app-teal" />
+          <div className="flex items-center gap-3 px-4 py-3">
+            <TrendingUp className="h-8 w-8 text-app-accent" />
+            <div>
+              <p className="text-sm font-medium text-app-accent">Current semester {mode}</p>
+              <p className="text-2xl font-bold text-app-fg">
+                {gradedCreditsThisSemester <= 0
                   ? "—"
-                  : cumulativeForecasterMark.toFixed(2)}
-            </span>
-            <span className="text-[11px] font-normal normal-case tracking-normal text-app-subtle">
-              {priorSnapshotsLoading && priorSemesters.length > 0
-                ? "Loading other terms…"
-                : priorSemesters.length === 0
-                  ? gradedCreditsThisSemester <= 0
-                    ? "First term — add grades above"
-                    : "This term only"
-                  : cumulativeForecasterMark === null
-                    ? `No saved ${mode} in ${priorSemesters.length} prior term${priorSemesters.length === 1 ? "" : "s"}`
-                    : `Across ${priorSnapshotMarks.length} prior term${priorSnapshotMarks.length === 1 ? "" : "s"} with grades`}
-            </span>
+                  : mode === "GPA"
+                    ? roundGpaTwoDecimals(currentResult).toFixed(2)
+                    : currentResult.toFixed(2)}
+              </p>
+              {gradedCreditsThisSemester <= 0 ? (
+                <p className="mt-0.5 text-xs text-app-subtle">
+                  Grades start unset — choose a letter when you have a mark.
+                </p>
+              ) : null}
+            </div>
           </div>
-          <input
-            type="text"
-            inputMode="decimal"
-            autoComplete="off"
-            value={targetGpaText}
-            onChange={(event) => setTargetGpaText(event.target.value)}
-            onBlur={() => commitTargetGpaText()}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") {
-                return;
-              }
-              event.preventDefault();
-              commitTargetGpaText();
-            }}
-            placeholder={mode === "GPA" ? "e.g. 3.96" : "e.g. 75"}
-            className="rounded-md border border-app-border bg-white px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
-          />
         </div>
-
-        {mode === "GPA" && hasVaultCourses && targetSemesterGpa > 0 ? (
-          <div className="space-y-3 rounded-xl border border-app-border bg-white px-4 py-3">
-            <h4 className="text-sm font-medium text-app-fg">Study plan ({activeSemesterName})</h4>
-            <p className="text-xs text-app-subtle">
-              To land near a <span className="font-medium text-app-fg">{targetSemesterGpa.toFixed(2)}</span> semester GPA
-              on the {gradeScale} scale, aim for at least the suggested letter in each course (equal weight per credit).
-              Spend weekly prep time roughly in proportion to credits — heavier courses need more calendar blocks.
-            </p>
-            <ul className="space-y-2">
-              {semesterCourses.map((c) => {
-                const suggestion = suggestedLetterForSemesterTarget(targetSemesterGpa, gradeScale);
-                const credits = c.creditUnits ?? 3;
-                return (
-                  <li
-                    key={c.id}
-                    className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-app-border bg-app-muted px-3 py-2 text-sm"
-                  >
-                    <span className="font-medium text-app-fg">{vaultCourseLabel(c)}</span>
-                    <span className="text-app-subtle">
-                      {credits} cr · aim ≥ <span className="font-semibold text-app-fg">{suggestion}</span>
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ) : mode === "CWA" && hasVaultCourses && targetSemesterGpa > 0 ? (
-          <div className="space-y-2 rounded-xl border border-app-border bg-white px-4 py-3">
-            <h4 className="text-sm font-medium text-app-fg">Study plan ({activeSemesterName})</h4>
-            <p className="text-xs text-app-subtle">
-              Target semester CWA <span className="font-medium text-app-fg">{targetSemesterGpa.toFixed(2)}%</span>. Work
-              toward that average across courses; prioritize weekly time by credit load.
-            </p>
-            <ul className="space-y-2">
-              {semesterCourses.map((c) => (
-                <li
-                  key={c.id}
-                  className="rounded-lg border border-app-border bg-app-muted px-3 py-2 text-sm text-app-fg"
-                >
-                  {vaultCourseLabel(c)} · {c.creditUnits ?? 3} credits
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+        </div>
       </section>
     </div>
   );

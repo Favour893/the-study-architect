@@ -3,12 +3,14 @@
 import { signOutUser } from "@/lib/firebase/auth";
 import { getUserProfile, updateUserProfileProgramme } from "@/lib/data/semesters";
 import { useAuth } from "@/providers/auth-provider";
+import { useTheme } from "@/providers/theme-provider";
 import { useToast } from "@/providers/toast-provider";
-import { CircleUser } from "lucide-react";
+import { CircleUser, Moon, Sun } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 export function UserProfileMenu() {
   const { user } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { pushToast } = useToast();
   const [open, setOpen] = useState(false);
   const [programmeDraft, setProgrammeDraft] = useState("");
@@ -69,7 +71,7 @@ export function UserProfileMenu() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex h-9 w-9 items-center justify-center rounded-full border border-app-border bg-white text-app-fg shadow-sm transition hover:bg-app-muted"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-app-border bg-panel text-app-fg shadow-sm transition hover:bg-app-muted"
         aria-expanded={open}
         aria-haspopup="menu"
         title="Account"
@@ -92,6 +94,34 @@ export function UserProfileMenu() {
             ) : null}
           </div>
 
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="mt-3 flex w-full items-center justify-between gap-2 rounded-md border border-app-border bg-app-accent-soft px-2.5 py-2 text-sm text-app-fg transition hover:bg-app-muted"
+            role="menuitem"
+          >
+            <span className="flex items-center gap-2">
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4 text-app-warning" aria-hidden />
+              ) : (
+                <Moon className="h-4 w-4 text-app-accent" aria-hidden />
+              )}
+              {theme === "dark" ? "Light mode" : "Dark mode"}
+            </span>
+            <span
+              className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+                theme === "dark" ? "bg-app-accent" : "bg-app-border"
+              }`}
+              aria-hidden
+            >
+              <span
+                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition ${
+                  theme === "dark" ? "left-4" : "left-0.5"
+                }`}
+              />
+            </span>
+          </button>
+
           <form
             className="mt-3 space-y-1.5"
             onSubmit={(event) => {
@@ -111,12 +141,12 @@ export function UserProfileMenu() {
               value={programmeDraft}
               onChange={(event) => setProgrammeDraft(event.target.value)}
               placeholder="e.g. BSc Computer Science"
-              className="w-full rounded-md border border-app-border bg-white px-2.5 py-1.5 text-sm text-app-fg outline-none ring-app-accent focus:ring-2"
+              className="w-full rounded-md border border-app-border bg-panel px-2.5 py-1.5 text-sm text-app-fg outline-none ring-app-accent focus:ring-2"
             />
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-md bg-app-fg px-2 py-1.5 text-xs font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-md bg-app-accent px-2 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? "Saving…" : "Save programme"}
             </button>
@@ -125,7 +155,7 @@ export function UserProfileMenu() {
           <button
             type="button"
             onClick={() => void signOutUser()}
-            className="mt-3 w-full rounded-md border border-app-border bg-white px-2 py-1.5 text-sm text-app-fg transition hover:bg-app-muted"
+            className="mt-3 w-full rounded-md border border-app-border bg-panel px-2 py-1.5 text-sm text-app-fg transition hover:bg-app-muted"
             role="menuitem"
           >
             Sign out
