@@ -33,12 +33,12 @@ export const NAV_ACCENTS: Record<string, NavAccent> = {
 };
 
 export const COURSE_CARD_ACCENTS = [
-  { bar: "from-app-accent to-app-info", badge: "bg-app-accent-soft text-app-accent" },
-  { bar: "from-app-teal to-app-success", badge: "bg-app-teal-soft text-app-teal" },
-  { bar: "from-app-violet to-app-coral", badge: "bg-app-violet-soft text-app-violet" },
-  { bar: "from-app-amber to-app-warning", badge: "bg-app-amber-soft text-app-amber" },
-  { bar: "from-app-info to-app-accent", badge: "bg-app-info-soft text-app-info" },
-  { bar: "from-app-coral to-app-violet", badge: "bg-app-coral-soft text-app-coral" },
+  { bar: "from-app-accent to-app-info", badge: "bg-sky-100 text-sky-950 font-semibold dark:bg-sky-800 dark:text-sky-50" },
+  { bar: "from-app-teal to-app-success", badge: "bg-emerald-100 text-emerald-950 font-semibold dark:bg-emerald-800 dark:text-emerald-50" },
+  { bar: "from-app-violet to-app-coral", badge: "bg-violet-100 text-violet-950 font-semibold dark:bg-violet-800 dark:text-violet-50" },
+  { bar: "from-app-amber to-app-warning", badge: "bg-amber-100 text-amber-950 font-semibold dark:bg-amber-800 dark:text-amber-50" },
+  { bar: "from-app-info to-app-accent", badge: "bg-sky-100 text-sky-950 font-semibold dark:bg-sky-800 dark:text-sky-50" },
+  { bar: "from-app-coral to-app-violet", badge: "bg-rose-100 text-rose-950 font-semibold dark:bg-rose-800 dark:text-rose-50" },
 ] as const;
 
 export const SEMESTER_CARD_ACCENTS = [

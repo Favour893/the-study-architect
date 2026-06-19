@@ -10,7 +10,9 @@
     "test:unit": "vitest run tests/unit",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:emulator": "cross-env TSA_E2E_USE_EMULATOR=true FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true playwright test"
+    "test:e2e:emulator": "cross-env TSA_E2E_USE_EMULATOR=true FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true playwright test",
+    "tunnel": "cloudflared tunnel --url http://localhost:3001",
+    "deploy": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 vercel --prod"
   },
   "dependencies": {
     "@playwright/test": "^1.59.1",
@@ -18,7 +20,9 @@
     "firebase": "^12.12.1",
     "jose": "^6.2.2",
     "lucide-react": "^1.9.0",
+    "mammoth": "^1.12.0",
     "next": "16.2.4",
+    "pdfjs-dist": "^6.0.227",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -27,6 +31,7 @@
     "@types/node": "^20.19.39",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cloudflared": "^0.7.1",
     "cross-env": "^10.1.0",
     "dotenv": "^17.4.2",
     "eslint": "^9",
@@ -34,6 +39,7 @@
     "firebase-tools": "^15.15.0",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vercel": "^54.14.2",
     "vitest": "^3.2.4"
   }
 }
