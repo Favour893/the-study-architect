@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, GraduationCap, Sparkles } from "lucide-react";
+import { BookOpen, Sparkles } from "lucide-react";
+import { TsaLogoMark } from "@/components/brand/tsa-logo-mark";
 import { AuthForm } from "@/components/auth/auth-form";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -36,8 +37,8 @@ export default function AuthPage() {
 
       <div className="relative grid w-full max-w-4xl gap-8 lg:grid-cols-[1fr_1.1fr] lg:items-center">
         <div className="hidden space-y-6 text-white lg:block">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-blue-100 ring-1 ring-white/20">
-            <GraduationCap className="h-3.5 w-3.5" />
+          <div className="inline-flex items-center gap-2.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-blue-100 ring-1 ring-white/20">
+            <TsaLogoMark className="h-6 w-6" />
             Built for university life
           </div>
           <h1 className="text-3xl font-semibold leading-tight">

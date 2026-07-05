@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GraduationCap } from "lucide-react";
+import { TsaLogoMark } from "@/components/brand/tsa-logo-mark";
 import { NAV_ACCENTS } from "@/lib/ui/accents";
 import type { ComponentType } from "react";
 
@@ -22,9 +22,7 @@ export function SidebarNav({ items }: SidebarNavProps) {
   return (
     <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-blue-950/40 bg-app-sidebar px-3 py-5 text-app-sidebar-fg md:flex">
       <div className="mb-8 flex items-center gap-2.5 px-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500/30 to-violet-500/30 ring-1 ring-white/25">
-          <GraduationCap className="h-5 w-5 text-sky-200" />
-        </div>
+        <TsaLogoMark className="h-9 w-9 shrink-0" />
         <div>
           <p className="text-sm font-semibold tracking-tight text-app-sidebar-fg">The Study Architect</p>
           <p className="text-[11px] text-app-sidebar-muted">Academic companion</p>
