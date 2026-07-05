@@ -86,10 +86,16 @@ export const PAGE_GUIDES: Record<PageGuideId, PageGuideStep[]> = {
   ],
   semester: [
     {
-      target: "semester-form",
-      title: "Semester hub",
-      body: "Update dates, archive old terms, or start a new semester here.",
+      target: "semester-manage",
+      title: "Your semesters",
+      body: "Switch terms, edit dates, or archive a semester you have finished.",
       placement: "bottom",
+    },
+    {
+      target: "semester-new",
+      title: "Start a new semester",
+      body: "When a new term begins, create it here and optionally copy courses from a past semester.",
+      placement: "top",
     },
   ],
 };

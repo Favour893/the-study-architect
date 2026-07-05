@@ -144,24 +144,11 @@ export function NewSemesterForm() {
   const otherActiveCandidates = semesters.filter((sem) => sem.id !== activeSemesterId && !sem.isArchived);
 
   return (
-    <section className="mx-auto w-full max-w-2xl space-y-6" data-page-guide="semester-form">
-      <header className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
-        <div className="h-1.5 bg-gradient-to-r from-rose-500 via-violet-500 to-sky-500" />
-        <div className="flex items-start gap-4 p-6">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500/20 to-violet-500/20 ring-1 ring-rose-300/30">
-            <CalendarDays className="h-6 w-6 text-rose-600 dark:text-rose-300" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-app-violet">Semester hub</p>
-            <h1 className="mt-0.5 text-2xl font-semibold text-app-fg">Your academic terms</h1>
-            <p className="mt-1 text-sm text-app-subtle">
-              Switch between terms, archive old ones, or start fresh for a new semester.
-            </p>
-          </div>
-        </div>
-      </header>
-
-      <div className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
+    <section className="mx-auto w-full max-w-2xl space-y-6">
+      <div
+        className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm"
+        data-page-guide="semester-manage"
+      >
         <div className="h-1 bg-gradient-to-r from-amber-400 to-rose-500" />
         <div className="p-6 md:p-8">
           <header className="mb-5 flex items-center gap-3">
@@ -299,7 +286,10 @@ export function NewSemesterForm() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
+      <div
+        className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm"
+        data-page-guide="semester-new"
+      >
         <div className="h-1 bg-gradient-to-r from-sky-500 to-emerald-500" />
         <div className="p-6 md:p-8">
           <header className="mb-6 flex items-center gap-3">

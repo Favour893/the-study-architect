@@ -2,7 +2,6 @@
 
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { BookOpen, CalendarRange, GraduationCap, Sparkles } from "lucide-react";
 import { completeOnboarding } from "@/lib/data/semesters";
 import type { GradeMode } from "@/lib/types/domain";
@@ -22,7 +21,6 @@ const inputClass =
 export function SemesterOnboarding() {
   const { user } = useAuth();
   const { pushToast } = useToast();
-  const router = useRouter();
   const [semesterName, setSemesterName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -66,7 +64,7 @@ export function SemesterOnboarding() {
         displayName: user.displayName,
       });
       pushToast("Semester set up! Welcome to TSA.", "success");
-      router.replace("/dashboard");
+      window.location.assign("/onboarding");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Could not complete onboarding.");
     } finally {

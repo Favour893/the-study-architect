@@ -119,7 +119,7 @@ export function AuthForm({ initialError = null }: AuthFormProps) {
               className="w-full rounded-lg border border-app-border bg-app-accent-soft/50 px-3 py-2 outline-none ring-app-accent transition focus:bg-panel focus:ring-2"
               placeholder="e.g. BSc Computer Science"
             />
-            <span className="text-xs text-app-subtle">You can add or change this later from your account menu.</span>
+            <span className="text-xs text-app-subtle">You can also set this when you set up your first semester.</span>
           </label>
         ) : null}
 

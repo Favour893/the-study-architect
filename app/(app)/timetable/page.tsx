@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Clock3, Cloud, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { createCourse, listCourses } from "@/lib/data/courses";
 import { pickCourseAccent } from "@/lib/ui/accents";
 import { fetchTimetableFromFirestore, saveTimetableToFirestore } from "@/lib/data/timetable";
@@ -318,17 +318,6 @@ export default function TimetablePage() {
       isMounted = false;
     };
   }, [user, activeSemesterId, semesterLoading]);
-
-  const totalFilled = useMemo(
-    () =>
-      Object.values(entries).filter(
-        (value) =>
-          value.courseName.trim().length > 0 ||
-          value.lecturerName.trim().length > 0 ||
-          value.location.trim().length > 0,
-      ).length,
-    [entries],
-  );
 
   function openEditor(day: string, slotKey: string) {
     const key = `${day}-${slotKey}`;
@@ -695,46 +684,8 @@ export default function TimetablePage() {
     });
   }
 
-  const syncLabel = useMemo(() => {
-    if (cloudSyncState === "syncing") {
-      return "Syncing...";
-    }
-    if (lastSyncedAt) {
-      return `Synced ${new Date(lastSyncedAt).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      })}`;
-    }
-    return "Local cache";
-  }, [cloudSyncState, lastSyncedAt]);
-
   return (
     <div className="space-y-5">
-      <header className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
-        <div className="h-1.5 bg-gradient-to-r from-violet-500 via-sky-500 to-emerald-500" />
-        <div className="flex flex-wrap items-start justify-between gap-4 p-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-950/50">
-              <Clock3 className="h-5 w-5 text-violet-600 dark:text-violet-300" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-app-violet">Weekly structure</p>
-              <h2 className="text-xl font-semibold text-app-fg">Timetable grid</h2>
-              <p className="mt-1 text-sm text-app-subtle">Hourly grid in GMT · default 07:00–19:00</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-medium text-sky-700 dark:bg-sky-950/50 dark:text-sky-300">
-              {totalFilled} blocks
-            </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-app-accent-soft px-2.5 py-1 text-xs font-medium text-app-accent">
-              <Cloud className="h-3 w-3" />
-              {syncLabel}
-            </span>
-          </div>
-        </div>
-      </header>
-
       <div className="min-w-0 overflow-hidden rounded-xl border border-app-border bg-panel shadow-sm" data-page-guide="timetable-grid">
         <div className="h-1 bg-gradient-to-r from-sky-500 via-violet-500 to-rose-500" />
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-app-border px-3 py-2.5">

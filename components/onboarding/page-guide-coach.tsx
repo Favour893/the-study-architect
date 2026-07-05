@@ -96,20 +96,6 @@ export function PageGuideCoach({ guideId }: PageGuideCoachProps) {
   }, [user, guideId, forceReplay]);
 
   useEffect(() => {
-    function handleReplay(event: Event) {
-      const detail = (event as CustomEvent<{ guideId?: PageGuideId }>).detail;
-      if (detail?.guideId && detail.guideId !== guideId) {
-        return;
-      }
-      setForceReplay(true);
-      setStepIndex(0);
-    }
-
-    window.addEventListener("tsa:replay-page-guide", handleReplay);
-    return () => window.removeEventListener("tsa:replay-page-guide", handleReplay);
-  }, [guideId]);
-
-  useEffect(() => {
     if (!activeStep) {
       clearHighlights();
       return;

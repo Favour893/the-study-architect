@@ -452,35 +452,6 @@ export default function CalculatorPage() {
 
   return (
     <div className="space-y-5">
-      <header className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
-        <div className="h-1.5 bg-gradient-to-r from-amber-500 via-violet-500 to-emerald-500" />
-        <div className="flex items-start gap-4 p-5">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950/50">
-            <Sigma className="h-5 w-5 text-amber-700 dark:text-amber-300" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">Predictive engine</p>
-            <h2 className="text-xl font-semibold text-app-fg">Grade calculator</h2>
-            <p className="mt-1 text-sm text-app-subtle">
-              {isVaultSemester
-                ? "Credits from your Courses page. Set letter grades to see your semester average."
-                : "Add courses with units and grades to calculate your semester average."}
-            </p>
-            {user && activeSemesterId ? (
-              <p className="mt-2 text-xs text-app-subtle">
-                {hasFirebaseConfig
-                  ? "Synced to your account for the semester in the header."
-                  : "Saved on this device for the selected semester."}
-              </p>
-            ) : user ? (
-              <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-                No active semester — complete onboarding or pick one in the header.
-              </p>
-            ) : null}
-          </div>
-        </div>
-      </header>
-
       <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
         <div className="h-1 bg-gradient-to-r from-app-accent to-app-violet" />
         <div className="flex flex-wrap items-center gap-3 p-4">

@@ -149,7 +149,7 @@ export async function POST(request: Request) {
   const programmeOfStudy = typeof body.programmeOfStudy === "string" ? body.programmeOfStudy.trim() : "";
   if (!programmeOfStudy) {
     return NextResponse.json(
-      { error: "Add your programme of study in the account menu to use AI topic suggestions." },
+      { error: "Add your programme of study during semester setup to use AI topic suggestions." },
       { status: 400 },
     );
   }
