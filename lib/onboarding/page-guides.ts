@@ -63,6 +63,12 @@ export const PAGE_GUIDES: Record<PageGuideId, PageGuideStep[]> = {
       body: "Tap any cell to log a class. Swipe sideways to see all hours.",
       placement: "bottom",
     },
+    {
+      target: "exam-timetable",
+      title: "Exam timetable",
+      body: "Add exam dates manually or import a photo. Set alarms so you never miss one.",
+      placement: "top",
+    },
   ],
   calculator: [
     {

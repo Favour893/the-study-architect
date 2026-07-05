@@ -28,6 +28,7 @@ import {
   FORM_SELECT_CLASS,
 } from "@/lib/ui/form-styles";
 import { TimetablePhotoImport } from "@/components/timetable/timetable-photo-import";
+import { ExamTimetableSection } from "@/components/timetable/exam-timetable-section";
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const dayAccent: Record<string, string> = {
@@ -941,6 +942,8 @@ export default function TimetablePage() {
           </div>
         </div>
       ) : null}
+
+      <ExamTimetableSection activeSemesterId={activeSemesterId} semesterLoading={semesterLoading} />
     </div>
   );
 }

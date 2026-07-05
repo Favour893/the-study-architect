@@ -26,6 +26,10 @@ export function semesterTimetableDocPath(uid: string, semesterId: string) {
   return `users/${uid}/semesters/${semesterId}/timetable/main`;
 }
 
+export function semesterExamTimetableDocPath(uid: string, semesterId: string) {
+  return `users/${uid}/semesters/${semesterId}/examTimetable/main`;
+}
+
 export function userGlobalMetricsPath(uid: string) {
   return `users/${uid}/metrics/global`;
 }
