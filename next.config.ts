@@ -19,9 +19,13 @@ const nextConfig: NextConfig = {
   ],
 };
 
-export default withSentryConfig(nextConfig, {
+const sentryOptions = {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   silent: true,
   disableLogger: true,
-});
+};
+
+export default process.env.NODE_ENV === "production"
+  ? withSentryConfig(nextConfig, sentryOptions)
+  : nextConfig;
