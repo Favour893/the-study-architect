@@ -2,6 +2,7 @@ import type { Course } from "../types/domain";
 import type { TimetableEntry, TimetableState } from "../timetable-storage";
 import {
   hourToSlotKey,
+  normalizeCourseCode,
   type TimetableImportCourse,
   type TimetableImportPayload,
   type TimetableImportSlot,
@@ -19,9 +20,19 @@ function titleKey(title: string) {
   return title.trim().toLowerCase();
 }
 
-function findCourseByTitle(courses: Course[], title: string) {
-  const key = titleKey(title);
-  return courses.find((course) => titleKey(course.title) === key) ?? null;
+function findExistingCourse(courses: Course[], title: string, code?: string) {
+  const titleMatch = titleKey(title);
+  const byTitle = courses.find((course) => titleKey(course.title) === titleMatch);
+  if (byTitle) {
+    return byTitle;
+  }
+  if (!code?.trim()) {
+    return null;
+  }
+  const codeNorm = normalizeCourseCode(code);
+  return (
+    courses.find((course) => course.code && normalizeCourseCode(course.code) === codeNorm) ?? null
+  );
 }
 
 function slotEntryKey(slot: TimetableImportSlot) {
@@ -36,44 +47,72 @@ function requiredEndHour(slots: TimetableImportSlot[], fallback: number) {
   return Math.min(24, maxEnd);
 }
 
+function courseFromCatalog(
+  catalog: Map<string, TimetableImportCourse>,
+  slot: TimetableImportSlot,
+): TimetableImportCourse {
+  const fromCatalog = catalog.get(titleKey(slot.courseTitle));
+  return {
+    title: slot.courseTitle,
+    code: slot.courseCode ?? fromCatalog?.code,
+    lecturerName: slot.lecturerName ?? fromCatalog?.lecturerName,
+    creditUnits: fromCatalog?.creditUnits,
+  };
+}
+
 export function buildTimetableImportPlan(
   payload: TimetableImportPayload,
   existingCourses: Course[],
   defaultStartHour: number,
   defaultEndHour: number,
 ): ApplyTimetableImportResult {
+  const catalog = new Map<string, TimetableImportCourse>();
+  for (const course of payload.courses) {
+    catalog.set(titleKey(course.title), course);
+  }
+
   const courseMatches: Record<string, string> = {};
   const coursesToCreate: TimetableImportCourse[] = [];
   const seenNew = new Set<string>();
 
-  for (const course of payload.courses) {
-    const existing = findCourseByTitle(existingCourses, course.title);
-    if (existing) {
-      courseMatches[titleKey(course.title)] = existing.id;
-      continue;
-    }
-    const key = titleKey(course.title);
-    if (!seenNew.has(key)) {
-      seenNew.add(key);
-      coursesToCreate.push(course);
+  function registerExisting(course: TimetableImportCourse, existing: Course) {
+    courseMatches[titleKey(course.title)] = existing.id;
+    if (course.code) {
+      courseMatches[normalizeCourseCode(course.code)] = existing.id;
     }
   }
 
-  for (const slot of payload.slots) {
-    const existing = findCourseByTitle(existingCourses, slot.courseTitle);
-    if (existing) {
-      courseMatches[titleKey(slot.courseTitle)] = existing.id;
-      continue;
-    }
-    const key = titleKey(slot.courseTitle);
+  function queueCreate(course: TimetableImportCourse) {
+    const key = titleKey(course.title);
     if (seenNew.has(key)) {
-      continue;
+      return;
+    }
+    const existing = findExistingCourse(existingCourses, course.title, course.code);
+    if (existing) {
+      registerExisting(course, existing);
+      return;
     }
     seenNew.add(key);
-    coursesToCreate.push({
-      title: slot.courseTitle,
-      lecturerName: slot.lecturerName,
-    });
+    coursesToCreate.push(course);
+  }
+
+  for (const course of payload.courses) {
+    const existing = findExistingCourse(existingCourses, course.title, course.code);
+    if (existing) {
+      registerExisting(course, existing);
+      continue;
+    }
+    queueCreate(course);
+  }
+
+  for (const slot of payload.slots) {
+    const merged = courseFromCatalog(catalog, slot);
+    const existing = findExistingCourse(existingCourses, merged.title, merged.code);
+    if (existing) {
+      registerExisting(merged, existing);
+      continue;
+    }
+    queueCreate(merged);
   }
 
   const startHour = payload.startHour ?? defaultStartHour;
@@ -81,15 +120,18 @@ export function buildTimetableImportPlan(
   const entries: TimetableState = {};
 
   for (const slot of payload.slots) {
+    const merged = courseFromCatalog(catalog, slot);
     const matchKey = titleKey(slot.courseTitle);
-    const entry: TimetableEntry = {
-      courseId: courseMatches[matchKey] ?? "",
+    const codeKey = merged.code ? normalizeCourseCode(merged.code) : null;
+    const courseId = courseMatches[matchKey] ?? (codeKey ? courseMatches[codeKey] : "") ?? "";
+
+    entries[slotEntryKey(slot)] = {
+      courseId,
       courseName: slot.courseTitle,
-      lecturerName: slot.lecturerName ?? "",
+      lecturerName: slot.lecturerName ?? merged.lecturerName ?? "",
       location: slot.location ?? "",
       durationHours: slot.durationHours,
     };
-    entries[slotEntryKey(slot)] = entry;
   }
 
   return {

@@ -44,15 +44,15 @@ export const PAGE_GUIDES: Record<PageGuideId, PageGuideStep[]> = {
   ],
   "course-detail": [
     {
-      target: "course-suggest",
-      title: "AI topic suggestions",
-      body: "Paste or import material, then generate topic ideas for this course.",
+      target: "course-planner",
+      title: "Notes & plan",
+      body: "Write course notes and to-dos here. Set a due time and turn on Alarm for a browser reminder.",
       placement: "bottom",
     },
     {
       target: "course-topics",
       title: "Course topics",
-      body: "Add topics here or use AI to suggest them from your syllabus.",
+      body: "Add syllabus topics here and track your progress through the term.",
       placement: "bottom",
     },
   ],

@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Camera, ImagePlus, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Camera, ChevronDown, ImagePlus, Loader2, ScanLine } from "lucide-react";
 import { createCourse } from "@/lib/data/courses";
 import {
   attachCourseIdsToEntries,
@@ -59,11 +59,26 @@ export function TimetablePhotoImport({
   const { pushToast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [preview, setPreview] = useState<TimetableImportPayload | null>(null);
   const [isApplying, setIsApplying] = useState(false);
 
+  useEffect(() => {
+    function handlePointer(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    if (menuOpen) {
+      document.addEventListener("mousedown", handlePointer);
+    }
+    return () => document.removeEventListener("mousedown", handlePointer);
+  }, [menuOpen]);
+
   async function handleFile(file: File | undefined) {
+    setMenuOpen(false);
     if (!file || !user || !activeSemesterId) {
       if (!user || !activeSemesterId) {
         pushToast("Sign in and select a semester first.", "error");
@@ -132,6 +147,9 @@ export function TimetablePhotoImport({
           creditUnits: course.creditUnits,
         });
         titleToId[course.title.trim().toLowerCase()] = id;
+        if (course.code) {
+          titleToId[course.code.trim().toLowerCase().replace(/\s+/g, "")] = id;
+        }
         createdCourses.push({
           id,
           title: course.title.trim(),
@@ -176,7 +194,7 @@ export function TimetablePhotoImport({
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-app-fg">Import from photo</p>
           <p className="text-xs text-app-subtle">
-            Take or upload a photo of your timetable to fill the grid and course cards automatically.
+            Reads courses, codes, lecturers, venues, days and times — then fills your timetable and course cards.
           </p>
         </div>
         <input
@@ -194,32 +212,47 @@ export function TimetablePhotoImport({
           className="hidden"
           onChange={(event) => void handleFile(event.target.files?.[0])}
         />
-        <button
-          type="button"
-          disabled={isScanning || !user || !activeSemesterId}
-          onClick={() => cameraRef.current?.click()}
-          className={FORM_SECONDARY_BUTTON_CLASS}
-        >
-          {isScanning ? (
-            <Loader2 className="mr-1 inline h-4 w-4 animate-spin" />
-          ) : (
-            <Camera className="mr-1 inline h-4 w-4" />
-          )}
-          Take photo
-        </button>
-        <button
-          type="button"
-          disabled={isScanning || !user || !activeSemesterId}
-          onClick={() => fileRef.current?.click()}
-          className={FORM_PRIMARY_BUTTON_CLASS}
-        >
-          {isScanning ? (
-            <Loader2 className="mr-1 inline h-4 w-4 animate-spin" />
-          ) : (
-            <ImagePlus className="mr-1 inline h-4 w-4" />
-          )}
-          Upload photo
-        </button>
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            disabled={isScanning || !user || !activeSemesterId}
+            onClick={() => setMenuOpen((open) => !open)}
+            className={`inline-flex items-center gap-1.5 ${FORM_PRIMARY_BUTTON_CLASS}`}
+          >
+            {isScanning ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ScanLine className="h-4 w-4" />
+            )}
+            Import timetable photo
+            <ChevronDown className="h-4 w-4 opacity-80" />
+          </button>
+          {menuOpen ? (
+            <div
+              className="absolute right-0 top-full z-20 mt-1.5 min-w-[11rem] overflow-hidden rounded-xl border border-app-border bg-panel py-1 shadow-lg"
+              role="menu"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-app-fg hover:bg-app-muted"
+                onClick={() => cameraRef.current?.click()}
+              >
+                <Camera className="h-4 w-4 text-app-accent" />
+                Take photo
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-app-fg hover:bg-app-muted"
+                onClick={() => fileRef.current?.click()}
+              >
+                <ImagePlus className="h-4 w-4 text-app-violet" />
+                Upload photo
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {preview && previewPlan ? (
@@ -237,16 +270,23 @@ export function TimetablePhotoImport({
                   {previewPlan.coursesToCreate.map((course) => (
                     <li key={course.title} className="rounded-md bg-app-accent-soft/50 px-2 py-1">
                       {course.title}
-                      {course.code ? ` (${course.code})` : ""}
+                      {course.code ? ` · ${course.code}` : ""}
+                      {course.lecturerName ? ` · ${course.lecturerName}` : ""}
                     </li>
                   ))}
                 </ul>
               ) : null}
               <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto text-xs text-app-subtle">
                 {Object.entries(previewPlan.entries).map(([key, entry]) => (
-                  <li key={key} className="rounded-md border border-app-border px-2 py-1">
-                    {key.replace("-", " · ")} — {entry.courseName}
-                    {entry.location ? ` @ ${entry.location}` : ""}
+                  <li key={key} className="rounded-md border border-app-border px-2 py-1.5 text-app-fg">
+                    <span className="font-medium">{key.replace("-", " · ")}</span>
+                    <span className="text-app-subtle"> — {entry.courseName}</span>
+                    {entry.lecturerName ? (
+                      <span className="block text-app-subtle">Lecturer: {entry.lecturerName}</span>
+                    ) : null}
+                    {entry.location ? (
+                      <span className="block text-app-subtle">Venue: {entry.location}</span>
+                    ) : null}
                   </li>
                 ))}
               </ul>

@@ -17,14 +17,17 @@ type ImportTimetableBody = {
 
 const SYSTEM_PROMPT =
   'Return ONLY a JSON object with keys "courses", "slots", and optionally "startHour" and "endHour". ' +
-  '"courses" is an array of { title, code?, lecturerName?, creditUnits? } for every distinct module on the timetable. ' +
-  '"slots" is an array of { day, startHour, durationHours, courseTitle, location?, lecturerName? }. ' +
-  'day must be Monday, Tuesday, Wednesday, Thursday, or Friday. startHour is 24-hour integer (e.g. 9 for 9 AM). ' +
-  "durationHours is how many consecutive hours the class runs. " +
-  "Read the uploaded timetable photo carefully. If a cell spans multiple hours, set durationHours accordingly. " +
-  "If the grid uses AM/PM, convert to 24-hour startHour. " +
-  "If information is unclear, omit that slot rather than guessing. " +
-  "Prefer course titles exactly as written on the timetable.";
+  '"courses" is an array of every distinct module: { title, code?, lecturerName?, creditUnits? }. ' +
+  '"code" is the course/module code exactly as printed (e.g. "MATH 109", "CSC 201"). ' +
+  '"slots" is an array of weekly class blocks: { day, startHour OR startTime, durationHours, courseTitle, courseCode?, location?, lecturerName? }. ' +
+  'day must be Monday, Tuesday, Wednesday, Thursday, or Friday. ' +
+  'startHour is 24-hour integer (9 = 9 AM). startTime alternative: "09:30" or "2:00 PM" (24h preferred). ' +
+  'durationHours = consecutive hours the class occupies on the grid. ' +
+  'location is the room, hall, or venue. lecturerName is the instructor name if shown. ' +
+  'courseCode on a slot should match the code for that course when visible in the cell. ' +
+  'Read the timetable photo carefully — extract ALL visible courses, codes, lecturers, venues, days, and times. ' +
+  'Convert AM/PM to 24-hour form. If a cell spans multiple hours, set durationHours accordingly. ' +
+  'If text is illegible, omit that field or slot rather than inventing data.';
 
 async function openAiParseTimetableImage(
   apiKey: string,
@@ -63,7 +66,7 @@ async function openAiParseTimetableImage(
               ],
             },
           ],
-          max_tokens: 2000,
+          max_tokens: 3500,
           temperature: 0.2,
         }),
       });

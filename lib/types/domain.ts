@@ -63,3 +63,17 @@ export type Topic = {
   createdAt?: unknown;
   updatedAt?: unknown;
 };
+
+export type CourseTodo = {
+  id: string;
+  title: string;
+  done: boolean;
+  /** ISO datetime string for due date / alarm. */
+  dueAt: string | null;
+  alarmEnabled: boolean;
+};
+
+export type CoursePlan = {
+  notes: string;
+  todos: CourseTodo[];
+};
