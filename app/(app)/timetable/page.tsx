@@ -39,13 +39,6 @@ type Slot = {
   label: string;
 };
 
-type MobileBlock = {
-  day: string;
-  slotKey: string;
-  label: string;
-  entry: TimetableEntry;
-};
-
 type CloudSyncState = "local" | "syncing" | "synced";
 
 function padHour(hour: number) {
@@ -133,7 +126,7 @@ export default function TimetablePage() {
 
   const slots = useMemo(() => buildSlots(startHour, endHour), [startHour, endHour]);
   /** Fixed grid: day column (7rem) + one 6rem column per hour so cells never grow with text. */
-  const desktopTimetableWidth = useMemo(
+  const timetableGridWidth = useMemo(
     () => `calc(7rem + ${slots.length} * 6rem)`,
     [slots.length],
   );
@@ -617,7 +610,7 @@ export default function TimetablePage() {
           <td
             key={`${day}-${slot.key}`}
             colSpan={block.entry.durationHours}
-            className="h-[52px] min-w-0 border-b border-app-border px-1.5 py-1.5 align-top"
+            className="h-[52px] min-w-24 border-b border-app-border px-1.5 py-1.5 align-top"
           >
             <button
               type="button"
@@ -661,7 +654,7 @@ export default function TimetablePage() {
 
       const isActive = editingKey === `${day}-${slot.key}`;
       return (
-        <td key={`${day}-${slot.key}`} className="h-[52px] min-w-0 border-b border-app-border px-1.5 py-1.5 align-top">
+        <td key={`${day}-${slot.key}`} className="h-[52px] min-w-24 border-b border-app-border px-1.5 py-1.5 align-top">
           <button
             type="button"
             onDragOver={(event) => {
@@ -692,32 +685,6 @@ export default function TimetablePage() {
       );
     });
   }
-
-  const mobileBlocks = useMemo(() => {
-    const blocks: MobileBlock[] = [];
-    for (const [entryKey, entry] of Object.entries(entries)) {
-      const [day, slotKey] = entryKey.split("-");
-      if (!day || !slotKey) {
-        continue;
-      }
-      const hour = parseHour(slotKey);
-      const duration = Math.max(1, entry.durationHours);
-      const endLabel = hour === null ? "" : hourToLabel(Math.min(23, hour + duration - 1));
-      blocks.push({
-        day,
-        slotKey,
-        label: `${hourToLabel(hour ?? 7)}${endLabel ? ` - ${endLabel}` : ""}`,
-        entry,
-      });
-    }
-    return blocks.sort((a, b) => {
-      const dayDiff = days.indexOf(a.day) - days.indexOf(b.day);
-      if (dayDiff !== 0) {
-        return dayDiff;
-      }
-      return a.slotKey.localeCompare(b.slotKey);
-    });
-  }, [entries]);
 
   const syncLabel = useMemo(() => {
     if (cloudSyncState === "syncing") {
@@ -788,76 +755,51 @@ export default function TimetablePage() {
           <Plus className="h-4 w-4" />
         </button>
       </div>
-      {timeError ? <p className="text-sm text-amber-700">{timeError}</p> : null}
+      {timeError ? <p className="text-sm text-amber-700 dark:text-amber-300">{timeError}</p> : null}
 
-      <div className="space-y-2 md:hidden">
-        {mobileBlocks.length === 0 ? (
-          <p className="rounded-xl border border-app-border bg-panel px-3 py-2 text-sm text-app-subtle">
-            No classes yet. Tap a slot on desktop/tablet to start building your week.
-          </p>
-        ) : (
-          mobileBlocks.map((block) => {
-            const accent = pickCourseAccent(block.entry.courseId || block.entry.courseName || block.day);
-            return (
-            <button
-              key={`${block.day}-${block.slotKey}`}
-              type="button"
-              onClick={() => openEditor(block.day, block.slotKey)}
-              className={`w-full overflow-hidden rounded-xl border border-app-border text-left shadow-sm ${accent.badge}`}
-            >
-              <div className={`h-1 bg-gradient-to-r ${accent.bar}`} />
-              <div className="px-3 py-2">
-                <p className="text-xs font-medium opacity-80">
-                  {block.day} · {block.label}
-                </p>
-                <p className="text-sm font-semibold">{block.entry.courseName || "Class block"}</p>
-                {block.entry.location ? <p className="text-xs opacity-75">{block.entry.location}</p> : null}
-              </div>
-            </button>
-            );
-          })
-        )}
-      </div>
+      <p className="text-xs text-app-subtle md:hidden">Swipe horizontally to view all time slots.</p>
 
-      <div className="hidden overflow-hidden rounded-xl border border-app-border bg-panel shadow-sm md:block">
+      <div className="min-w-0 overflow-hidden rounded-xl border border-app-border bg-panel shadow-sm">
         <div className="h-1 bg-gradient-to-r from-sky-500 via-violet-500 to-rose-500" />
-        <div className="overflow-x-auto">
-        <table
-          className="table-fixed border-separate border-spacing-0"
-          style={{ width: desktopTimetableWidth, minWidth: desktopTimetableWidth }}
-        >
-          <colgroup>
-            <col className="w-28" />
-            {slots.map((slot) => (
-              <col key={slot.key} className="w-24" />
-            ))}
-          </colgroup>
-          <thead>
-            <tr>
-              <th className="sticky left-0 z-20 w-28 min-w-28 border-b border-r border-app-border bg-app-accent-soft px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-app-accent shadow-[4px_0_8px_-2px_rgba(15,23,42,0.1)]">
-                Day
-              </th>
+        <div className="overflow-x-auto overscroll-x-contain">
+          <table
+            className="table-fixed border-separate border-spacing-0"
+            style={{ width: timetableGridWidth, minWidth: timetableGridWidth }}
+          >
+            <colgroup>
+              <col className="w-28" />
               {slots.map((slot) => (
-                <th
-                  key={slot.key}
-                  className="w-24 min-w-0 max-w-24 border-b border-app-border bg-app-violet-soft/50 px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-app-violet"
-                >
-                  <span className="block truncate">{slot.label}</span>
-                </th>
+                <col key={slot.key} className="w-24" />
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {days.map((day) => (
-              <tr key={day}>
-                <td className={`sticky left-0 z-20 w-28 min-w-28 whitespace-nowrap border-b border-r border-app-border bg-panel px-3 py-2 text-sm font-semibold shadow-[4px_0_8px_-2px_rgba(15,23,42,0.1)] ${dayAccent[day] ?? "text-app-fg"}`}>
-                  {day}
-                </td>
-                {renderDayCells(day)}
+            </colgroup>
+            <thead>
+              <tr>
+                <th className="sticky left-0 z-20 w-28 min-w-28 border-b border-r border-app-border bg-app-accent-soft px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-app-accent shadow-[4px_0_8px_-2px_rgba(15,23,42,0.1)]">
+                  Day
+                </th>
+                {slots.map((slot) => (
+                  <th
+                    key={slot.key}
+                    className="w-24 min-w-24 max-w-24 border-b border-app-border bg-app-violet-soft/50 px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-app-violet"
+                  >
+                    <span className="block truncate">{slot.label}</span>
+                  </th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {days.map((day) => (
+                <tr key={day}>
+                  <td
+                    className={`sticky left-0 z-20 w-28 min-w-28 whitespace-nowrap border-b border-r border-app-border bg-panel px-3 py-2 text-sm font-semibold shadow-[4px_0_8px_-2px_rgba(15,23,42,0.1)] ${dayAccent[day] ?? "text-app-fg"}`}
+                  >
+                    {day}
+                  </td>
+                  {renderDayCells(day)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 

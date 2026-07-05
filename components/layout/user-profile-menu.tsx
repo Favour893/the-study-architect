@@ -57,7 +57,7 @@ export function UserProfileMenu() {
     setSaving(true);
     try {
       await updateUserProfileProgramme(user.uid, programmeDraft.trim() || null);
-      pushToast("Programme of study saved.", "info", "profile-programme");
+      pushToast("Programme of study saved.", "success", "profile-programme");
       setOpen(false);
     } catch {
       pushToast("Could not save programme. Try again.", "error", "profile-programme");
@@ -154,8 +154,20 @@ export function UserProfileMenu() {
 
           <button
             type="button"
-            onClick={() => void signOutUser()}
+            onClick={() => {
+              setOpen(false);
+              window.dispatchEvent(new CustomEvent("tsa:open-app-guide"));
+            }}
             className="mt-3 w-full rounded-md border border-app-border bg-panel px-2 py-1.5 text-sm text-app-fg transition hover:bg-app-muted"
+            role="menuitem"
+          >
+            View app tour
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void signOutUser()}
+            className="mt-2 w-full rounded-md border border-app-border bg-panel px-2 py-1.5 text-sm text-app-fg transition hover:bg-app-muted"
             role="menuitem"
           >
             Sign out

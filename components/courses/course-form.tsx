@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FORM_INPUT_CLASS, FORM_PRIMARY_BUTTON_CLASS } from "@/lib/ui/form-styles";
 
 type CourseFormProps = {
   onCreate: (payload: {
@@ -9,9 +10,10 @@ type CourseFormProps = {
     lecturerName?: string;
     creditUnits?: number;
   }) => Promise<void>;
+  onValidationError?: (message: string) => void;
 };
 
-export function CourseForm({ onCreate }: CourseFormProps) {
+export function CourseForm({ onCreate, onValidationError }: CourseFormProps) {
   const [title, setTitle] = useState("");
   const [code, setCode] = useState("");
   const [lecturerName, setLecturerName] = useState("");
@@ -21,16 +23,20 @@ export function CourseForm({ onCreate }: CourseFormProps) {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!title.trim()) {
+      onValidationError?.("Course title is required.");
       return;
     }
 
     setIsSubmitting(true);
-    await onCreate({ title, code, lecturerName, creditUnits });
-    setTitle("");
-    setCode("");
-    setLecturerName("");
-    setCreditUnits(3);
-    setIsSubmitting(false);
+    try {
+      await onCreate({ title, code, lecturerName, creditUnits });
+      setTitle("");
+      setCode("");
+      setLecturerName("");
+      setCreditUnits(3);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -42,13 +48,13 @@ export function CourseForm({ onCreate }: CourseFormProps) {
         value={title}
         onChange={(event) => setTitle(event.target.value)}
         placeholder="Course title"
-        className="rounded-lg border border-app-border bg-white px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2 md:col-span-2"
+        className={`${FORM_INPUT_CLASS} md:col-span-2`}
       />
       <input
         value={code}
         onChange={(event) => setCode(event.target.value)}
         placeholder="Code (optional)"
-        className="rounded-lg border border-app-border bg-white px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
+        className={FORM_INPUT_CLASS}
       />
       <input
         type="number"
@@ -57,19 +63,15 @@ export function CourseForm({ onCreate }: CourseFormProps) {
         value={creditUnits}
         onChange={(event) => setCreditUnits(Number(event.target.value) || 3)}
         placeholder="Credits"
-        className="rounded-lg border border-app-border bg-white px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
+        className={FORM_INPUT_CLASS}
       />
       <input
         value={lecturerName}
         onChange={(event) => setLecturerName(event.target.value)}
         placeholder="Lecturer name"
-        className="rounded-lg border border-app-border bg-white px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
+        className={FORM_INPUT_CLASS}
       />
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="rounded-lg bg-app-fg px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-60"
-      >
+      <button type="submit" disabled={isSubmitting} className={FORM_PRIMARY_BUTTON_CLASS}>
         {isSubmitting ? "Adding..." : "Create course"}
       </button>
     </form>

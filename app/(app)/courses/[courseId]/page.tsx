@@ -216,7 +216,7 @@ export default function CourseDetailPage() {
         contentText: parsed.text,
       });
       await loadData(user.uid, activeSemesterId);
-      pushToast("Document imported for AI context.", "info");
+      pushToast("Document imported for AI context.", "success");
     } catch (err) {
       pushToast(err instanceof Error ? err.message : "Could not import document.", "error");
     } finally {
@@ -263,7 +263,7 @@ export default function CourseDetailPage() {
       }
       setSuggestDrafts([]);
       await loadData(user.uid, activeSemesterId);
-      pushToast(`Added ${toAdd.length} topic(s).`, "info");
+      pushToast(`Added ${toAdd.length} topic(s).`, "success");
     } catch {
       pushToast("Could not add suggested topics.", "error");
     } finally {
@@ -281,6 +281,7 @@ export default function CourseDetailPage() {
       await createTopic(user.uid, activeSemesterId, courseId, { title: topicTitle });
       setTopicTitle("");
       await loadData(user.uid, activeSemesterId);
+      pushToast("Topic added.", "success");
     } catch {
       pushToast("Could not add topic.", "error");
     } finally {
@@ -295,6 +296,7 @@ export default function CourseDetailPage() {
     try {
       await setTopicLearningStage(user.uid, activeSemesterId, courseId, topicId, stage);
       await loadData(user.uid, activeSemesterId);
+      pushToast("Topic status updated.", "success");
     } catch {
       pushToast("Could not update topic status.", "error");
     }
@@ -322,7 +324,7 @@ export default function CourseDetailPage() {
         await setTopicNotes(user.uid, activeSemesterId, courseId, topicId, notes);
       }
       await loadData(user.uid, activeSemesterId);
-      pushToast("Topic saved.");
+      pushToast("Topic saved.", "success");
     } catch {
       pushToast("Could not save topic.", "error");
     }

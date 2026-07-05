@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 
-type ToastVariant = "error" | "info";
+type ToastVariant = "error" | "info" | "success";
 
 type ToastItem = {
   id: string;
@@ -22,6 +22,14 @@ type ToastContextValue = {
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 const DEFAULT_DEDUPE_MS = 90_000;
+
+const TOAST_STYLES: Record<ToastVariant, string> = {
+  error:
+    "border-red-200 bg-red-50 text-red-900 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-200",
+  success:
+    "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/50 dark:text-emerald-200",
+  info: "border-app-border bg-panel text-app-fg shadow-md ring-1 ring-app-border/60",
+};
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -58,16 +66,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex max-w-sm flex-col gap-2 px-4 md:bottom-8 md:right-8">
+      <div className="pointer-events-none fixed inset-x-0 bottom-20 z-[100] flex flex-col items-end gap-2 px-4 md:inset-x-auto md:bottom-8 md:right-8 md:max-w-sm">
         {toasts.map((t) => (
           <div
             key={t.id}
             role="status"
-            className={`pointer-events-auto rounded-xl border px-4 py-3 text-sm shadow-lg ${
-              t.variant === "error"
-                ? "border-red-200 bg-red-50 text-red-900"
-                : "border-app-border bg-panel text-app-fg"
-            }`}
+            aria-live="polite"
+            className={`pointer-events-auto w-full max-w-sm rounded-xl border px-4 py-3 text-sm shadow-lg ${TOAST_STYLES[t.variant]}`}
           >
             {t.message}
           </div>

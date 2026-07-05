@@ -67,6 +67,18 @@ export async function getUserProfile(uid: string) {
   return profileSnap.exists() ? (profileSnap.data() as UserProfile) : null;
 }
 
+export async function markAppGuideSeen(uid: string) {
+  const db = getDb();
+  await setDoc(
+    doc(db, userProfilePath(uid)),
+    {
+      hasSeenAppGuide: true,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
 export async function completeOnboarding(uid: string, payload: OnboardingPayload) {
   const db = getDb();
   const semesterRef = doc(collection(db, userSemestersPath(uid)));
@@ -110,6 +122,7 @@ export async function completeOnboarding(uid: string, payload: OnboardingPayload
       programmeOfStudy: payload.programmeOfStudy.trim() || null,
       gradeMode: payload.gradeMode,
       onboardingComplete: true,
+      hasSeenAppGuide: false,
       activeSemesterId: semesterId,
       updatedAt: serverTimestamp(),
     },

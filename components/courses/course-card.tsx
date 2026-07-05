@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { pickCourseAccent } from "@/lib/ui/accents";
+import {
+  FORM_INPUT_CLASS_BLOCK,
+  FORM_PRIMARY_BUTTON_CLASS,
+  FORM_SECONDARY_BUTTON_CLASS,
+} from "@/lib/ui/form-styles";
 import type { Course } from "@/lib/types/domain";
 
 type CourseCardProps = {
@@ -81,7 +86,7 @@ export function CourseCard({
 
       {isEditing ? (
         <form
-          className="space-y-2 rounded-xl border border-app-border bg-white p-3"
+          className="space-y-2 rounded-xl border border-app-border bg-app-muted/40 p-3"
           onSubmit={(event) => {
             event.preventDefault();
             void handleSave();
@@ -90,14 +95,14 @@ export function CourseCard({
           <input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            className="w-full rounded-md border border-app-border px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
+            className={FORM_INPUT_CLASS_BLOCK}
             placeholder="Course title"
           />
           <div className="grid gap-2 sm:grid-cols-2">
             <input
               value={code}
               onChange={(event) => setCode(event.target.value)}
-              className="w-full rounded-md border border-app-border px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
+              className={FORM_INPUT_CLASS_BLOCK}
               placeholder="Course code"
             />
             <input
@@ -106,36 +111,28 @@ export function CourseCard({
               max={30}
               value={creditUnits}
               onChange={(event) => setCreditUnits(Number(event.target.value) || 3)}
-              className="w-full rounded-md border border-app-border px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
+              className={FORM_INPUT_CLASS_BLOCK}
               placeholder="Credit units"
             />
           </div>
           <input
             value={lecturerName}
             onChange={(event) => setLecturerName(event.target.value)}
-            className="w-full rounded-md border border-app-border px-3 py-2 text-sm outline-none ring-app-accent focus:ring-2"
+            className={FORM_INPUT_CLASS_BLOCK}
             placeholder="Lecturer"
           />
           <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={() => void onDeleteCourse(course.id)}
-              className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700 hover:bg-red-100"
+              className="rounded-md border border-red-300/60 bg-red-50 px-3 py-1.5 text-sm text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
             >
               Delete
             </button>
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="rounded-md border border-app-border bg-white px-3 py-1.5 text-sm text-app-fg hover:bg-app-muted"
-            >
+            <button type="button" onClick={handleCancel} className={FORM_SECONDARY_BUTTON_CLASS}>
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="rounded-md bg-app-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
-            >
+            <button type="submit" disabled={isSaving} className={FORM_PRIMARY_BUTTON_CLASS}>
               {isSaving ? "Saving..." : "Save"}
             </button>
           </div>

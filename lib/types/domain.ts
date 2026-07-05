@@ -8,6 +8,8 @@ export type UserProfile = {
   programmeOfStudy?: string | null;
   gradeMode: GradeMode | null;
   onboardingComplete: boolean;
+  /** Shown once after semester onboarding — app feature tour on Pulse. */
+  hasSeenAppGuide?: boolean;
   activeSemesterId: string | null;
   createdAt?: unknown;
   updatedAt?: unknown;

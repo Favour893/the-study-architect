@@ -80,9 +80,14 @@ export default function CoursesPage() {
     try {
       await createCourse(user.uid, activeSemesterId, payload);
       await loadCourses(user.uid, activeSemesterId);
+      pushToast(`"${payload.title.trim()}" added to your courses.`, "success");
     } catch {
       pushToast("Could not create course. Check your connection and try again.", "error");
     }
+  }
+
+  function handleCourseFormValidation(message: string) {
+    pushToast(message, "error");
   }
 
   async function handleSaveCourseEdits(
@@ -96,7 +101,7 @@ export default function CoursesPage() {
       await updateCourse(user.uid, activeSemesterId, courseId, payload);
       await loadCourses(user.uid, activeSemesterId);
       setEditingCourseId(null);
-      pushToast("Course updated.");
+      pushToast("Course updated.", "success");
     } catch {
       pushToast("Could not update course. Try again.", "error");
     }
@@ -116,7 +121,7 @@ export default function CoursesPage() {
       await createTopic(user.uid, activeSemesterId, courseId, { title: "Differential Equations" });
       await createTopic(user.uid, activeSemesterId, courseId, { title: "Laplace Transform" });
       await loadCourses(user.uid, activeSemesterId);
-      pushToast("Sample course created.");
+      pushToast("Sample course created.", "success");
     } catch {
       pushToast("Could not create sample course. Try again.", "error");
     }
@@ -130,7 +135,7 @@ export default function CoursesPage() {
       await deleteCourse(user.uid, activeSemesterId, courseId);
       await loadCourses(user.uid, activeSemesterId);
       setEditingCourseId(null);
-      pushToast("Course deleted.");
+      pushToast("Course deleted.", "success");
     } catch {
       pushToast("Could not delete course. Try again.", "error");
     }
@@ -154,10 +159,14 @@ export default function CoursesPage() {
       </header>
 
       <div className="shrink-0">
-        <CourseForm onCreate={handleCreateCourse} />
+        <CourseForm onCreate={handleCreateCourse} onValidationError={handleCourseFormValidation} />
       </div>
 
-      {error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
+      {error ? (
+        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
+          {error}
+        </p>
+      ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         {courses.length === 0 ? (

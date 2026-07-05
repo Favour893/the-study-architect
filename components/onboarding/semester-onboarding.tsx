@@ -7,6 +7,7 @@ import { BookOpen, CalendarRange, GraduationCap, Sparkles } from "lucide-react";
 import { completeOnboarding } from "@/lib/data/semesters";
 import type { GradeMode } from "@/lib/types/domain";
 import { useAuth } from "@/providers/auth-provider";
+import { useToast } from "@/providers/toast-provider";
 
 type DraftCourse = {
   title: string;
@@ -20,6 +21,7 @@ const inputClass =
 
 export function SemesterOnboarding() {
   const { user } = useAuth();
+  const { pushToast } = useToast();
   const router = useRouter();
   const [semesterName, setSemesterName] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -63,6 +65,7 @@ export function SemesterOnboarding() {
         email: user.email,
         displayName: user.displayName,
       });
+      pushToast("Semester set up! Welcome to TSA.", "success");
       router.replace("/dashboard");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Could not complete onboarding.");

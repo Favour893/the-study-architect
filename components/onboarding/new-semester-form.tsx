@@ -133,7 +133,7 @@ export function NewSemesterForm() {
       });
       await refreshSemesters();
       cancelEdit();
-      pushToast("Semester details updated.");
+      pushToast("Semester details updated.", "success");
     } catch {
       pushToast("Could not update semester details.", "error");
     } finally {
