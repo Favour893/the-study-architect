@@ -1,5 +1,5 @@
 import type { Course } from "../types/domain";
-import type { TimetableEntry, TimetableState } from "../timetable-storage";
+import type { TimetableState } from "../timetable-storage";
 import {
   hourToSlotKey,
   normalizeCourseCode,

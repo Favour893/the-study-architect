@@ -19,18 +19,6 @@ type CoursePlannerProps = {
   courseTitle: string;
 };
 
-function toDatetimeLocalValue(iso: string | null) {
-  if (!iso) {
-    return "";
-  }
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return "";
-  }
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
 function fromDatetimeLocalValue(value: string): string | null {
   if (!value.trim()) {
     return null;
@@ -82,6 +70,7 @@ export function CoursePlanner({ uid, semesterId, courseId, courseTitle }: Course
   const [newTodoAlarm, setNewTodoAlarm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const notesSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const persist = useCallback(
@@ -125,10 +114,15 @@ export function CoursePlanner({ uid, semesterId, courseId, courseTitle }: Course
   }, [uid, semesterId, courseId, pushToast]);
 
   useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) {
       return;
     }
-    const timers: ReturnType<typeof setTimeout>[] = [];
+    const timers: number[] = [];
     const now = Date.now();
     for (const todo of todos) {
       if (!todo.alarmEnabled || todo.done || !todo.dueAt) {
@@ -331,7 +325,9 @@ export function CoursePlanner({ uid, semesterId, courseId, courseTitle }: Course
           <ul className="space-y-2">
             {todos.map((todo) => {
               const dueLabel = formatDueLabel(todo.dueAt);
-              const isOverdue = Boolean(todo.dueAt && !todo.done && new Date(todo.dueAt).getTime() < Date.now());
+              const isOverdue = Boolean(
+                todo.dueAt && !todo.done && new Date(todo.dueAt).getTime() < nowMs,
+              );
               return (
                 <li
                   key={todo.id}
