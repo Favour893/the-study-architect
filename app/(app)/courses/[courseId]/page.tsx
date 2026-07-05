@@ -492,7 +492,7 @@ export default function CourseDetailPage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm" data-page-guide="course-suggest">
         <div className="h-1 bg-gradient-to-r from-violet-500 to-app-violet" />
         <div className="space-y-3 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -565,7 +565,7 @@ export default function CourseDetailPage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm" data-page-guide="course-topics">
         <div className="h-1 bg-gradient-to-r from-emerald-500 to-app-teal" />
         <form onSubmit={handleAddTopic} className="flex flex-wrap items-center gap-2 p-4">
           <div className="flex items-center gap-2">

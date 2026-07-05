@@ -1,4 +1,4 @@
-const CACHE_NAME = "tsa-v1";
+const CACHE_NAME = "tsa-v2";
 const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html"];
 
 self.addEventListener("install", (event) => {
@@ -15,6 +15,10 @@ self.addEventListener("activate", (event) => {
       .then(() => self.clients.claim()),
   );
 });
+
+function isStaticAsset(pathname) {
+  return PRECACHE_URLS.includes(pathname);
+}
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
@@ -33,35 +37,36 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (PRECACHE_URLS.includes(url.pathname)) {
+  // Never cache Next.js bundles — always fetch fresh (avoids stale UI after updates).
+  if (url.pathname.startsWith("/_next/")) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  if (isStaticAsset(url.pathname)) {
     event.respondWith(caches.match(request).then((cached) => cached ?? fetch(request)));
     return;
   }
 
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).catch(() =>
-        caches.match("/offline.html").then((cached) => cached ?? Response.error()),
-      ),
+      fetch(request)
+        .then((response) => response)
+        .catch(() => caches.match("/offline.html").then((cached) => cached ?? Response.error())),
     );
     return;
   }
 
+  // Network-first for everything else (CSS, JS entry points, etc.).
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) {
-        return cached;
-      }
-
-      return fetch(request).then((response) => {
-        if (!response.ok || response.type !== "basic") {
-          return response;
+    fetch(request)
+      .then((response) => {
+        if (response.ok && response.type === "basic") {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         }
-
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         return response;
-      });
-    }),
+      })
+      .catch(() => caches.match(request)),
   );
 });

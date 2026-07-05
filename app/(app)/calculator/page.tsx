@@ -437,7 +437,7 @@ export default function CalculatorPage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm" data-page-guide="calculator-rows">
         <div className="h-1 bg-gradient-to-r from-emerald-500 to-sky-500" />
         <div className="space-y-3 p-4">
         <div className="flex items-center justify-between">
@@ -548,7 +548,7 @@ export default function CalculatorPage() {
           );
         })}
 
-        <div className="overflow-hidden rounded-xl border border-app-border bg-gradient-to-br from-app-accent-soft via-app-violet-soft to-app-teal-soft shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-app-border bg-gradient-to-br from-app-accent-soft via-app-violet-soft to-app-teal-soft shadow-sm" data-page-guide="calculator-summary">
           <div className="h-1 bg-gradient-to-r from-app-accent to-app-teal" />
           <div className="flex items-center gap-3 px-4 py-3">
             <TrendingUp className="h-8 w-8 text-app-accent" />

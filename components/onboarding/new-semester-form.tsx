@@ -144,7 +144,7 @@ export function NewSemesterForm() {
   const otherActiveCandidates = semesters.filter((sem) => sem.id !== activeSemesterId && !sem.isArchived);
 
   return (
-    <section className="mx-auto w-full max-w-2xl space-y-6">
+    <section className="mx-auto w-full max-w-2xl space-y-6" data-page-guide="semester-form">
       <header className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
         <div className="h-1.5 bg-gradient-to-r from-rose-500 via-violet-500 to-sky-500" />
         <div className="flex items-start gap-4 p-6">

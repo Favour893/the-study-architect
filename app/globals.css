@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../lib";
+@source "../components";
 
 :root {
   --background: #eef3fc;
@@ -111,4 +113,199 @@ body {
     radial-gradient(ellipse 55% 45% at 95% 5%, rgba(167, 139, 250, 0.08), transparent),
     radial-gradient(ellipse 50% 40% at 80% 95%, rgba(45, 212, 191, 0.06), transparent),
     radial-gradient(ellipse 45% 35% at 5% 90%, rgba(251, 191, 36, 0.05), transparent);
+}
+
+.tsa-page-guide-highlight {
+  position: relative;
+  z-index: 61;
+}
+
+/* Native form controls: avoid browser default white fields in dark mode */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+.dark select,
+.dark textarea {
+  color-scheme: dark;
+}
+
+.dark select option {
+  background-color: var(--panel);
+  color: var(--foreground);
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--accent-soft) inset;
+  -webkit-text-fill-color: var(--foreground);
+  caret-color: var(--foreground);
+  transition: background-color 99999s ease-in-out 0s;
+}
+
+@layer components {
+  .tsa-field {
+    border-radius: 0.5rem;
+    border-width: 1px;
+    border-style: solid;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: var(--foreground);
+    caret-color: var(--accent);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .tsa-field::placeholder {
+    color: var(--subtle);
+    opacity: 1;
+  }
+
+  .tsa-field-accent {
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+    background-color: var(--accent-soft);
+  }
+
+  .tsa-field-accent:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+
+  .tsa-field-violet {
+    border-color: color-mix(in srgb, var(--violet) 35%, transparent);
+    background-color: var(--violet-soft);
+  }
+
+  .tsa-field-violet:focus {
+    border-color: var(--violet);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--violet) 45%, transparent);
+  }
+
+  .tsa-field-teal {
+    border-color: color-mix(in srgb, var(--teal) 35%, transparent);
+    background-color: var(--teal-soft);
+  }
+
+  .tsa-field-teal:focus {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--teal) 45%, transparent);
+  }
+
+  .tsa-field-info {
+    border-color: color-mix(in srgb, var(--info) 35%, transparent);
+    background-color: var(--info-soft);
+  }
+
+  .tsa-field-info:focus {
+    border-color: var(--info);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--info) 45%, transparent);
+  }
+
+  .tsa-field-readonly {
+    border-color: color-mix(in srgb, var(--border) 60%, transparent);
+    background-color: color-mix(in srgb, var(--muted) 70%, transparent);
+    color: var(--subtle);
+    cursor: default;
+  }
+
+  .tsa-field-readonly:focus {
+    box-shadow: none;
+  }
+
+  select.tsa-field {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    padding-right: 2rem;
+  }
+
+  .tsa-btn-primary {
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #fff;
+    background: linear-gradient(to right, var(--accent), var(--violet));
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--violet) 25%, transparent);
+    transition: opacity 0.15s ease;
+  }
+
+  .tsa-btn-primary:hover:not(:disabled) {
+    opacity: 0.95;
+  }
+
+  .tsa-btn-primary:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .tsa-btn-secondary {
+    border-radius: 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--accent);
+    background-color: var(--accent-soft);
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+
+  .tsa-btn-secondary:hover {
+    border-color: var(--accent);
+    background-color: var(--accent-light);
+  }
+
+  .tsa-btn-danger {
+    border-radius: 0.5rem;
+    border: 1px solid color-mix(in srgb, #ef4444 60%, transparent);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #b91c1c;
+    background-color: #fef2f2;
+  }
+
+  .dark .tsa-btn-danger {
+    border-color: color-mix(in srgb, #991b1b 60%, transparent);
+    color: #fca5a5;
+    background-color: color-mix(in srgb, #450a0a 40%, transparent);
+  }
+
+  .tsa-course-form {
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid var(--border);
+    background-color: var(--panel);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--foreground) 5%, transparent);
+  }
+
+  .tsa-course-form-bar {
+    height: 0.25rem;
+    background: linear-gradient(to right, var(--accent), var(--violet), var(--teal));
+  }
+
+  .tsa-course-form-body {
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: linear-gradient(
+      to bottom right,
+      color-mix(in srgb, var(--accent-soft) 60%, transparent),
+      var(--panel),
+      color-mix(in srgb, var(--violet-soft) 40%, transparent)
+    );
+  }
+
+  @media (min-width: 768px) {
+    .tsa-course-form-body {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+
+    .tsa-field-span-2 {
+      grid-column: span 2 / span 2;
+    }
+  }
 }

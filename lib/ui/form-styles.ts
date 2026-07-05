@@ -1,11 +1,27 @@
-/** Shared form control styles — readable in light and dark mode. */
-export const FORM_INPUT_CLASS =
-  "rounded-lg border border-app-border bg-app-accent-soft/50 px-3 py-2 text-sm text-app-fg outline-none ring-app-accent transition placeholder:text-app-subtle focus:bg-panel focus:ring-2";
+/** Form classes defined in app/globals.css — always loaded, not Tailwind-dependent. */
+export const FORM_INPUT_ACCENT = "tsa-field tsa-field-accent";
+export const FORM_INPUT_VIOLET = "tsa-field tsa-field-violet";
+export const FORM_INPUT_TEAL = "tsa-field tsa-field-teal";
+export const FORM_INPUT_INFO = "tsa-field tsa-field-info";
 
-export const FORM_INPUT_CLASS_BLOCK = `w-full ${FORM_INPUT_CLASS}`;
+export const FORM_INPUT_CLASS = FORM_INPUT_ACCENT;
 
-export const FORM_PRIMARY_BUTTON_CLASS =
-  "rounded-lg bg-app-accent px-3 py-2 text-sm font-medium text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60";
+export const FORM_INPUT_CLASS_BLOCK = "tsa-field tsa-field-accent w-full";
 
-export const FORM_SECONDARY_BUTTON_CLASS =
-  "rounded-lg border border-app-border bg-panel px-3 py-2 text-sm font-medium text-app-fg transition hover:bg-app-muted";
+export const FORM_SELECT_CLASS = "tsa-field tsa-field-accent w-full";
+
+export const FORM_INPUT_READONLY_CLASS = "tsa-field tsa-field-readonly w-full";
+
+export const FORM_PRIMARY_BUTTON_CLASS = "tsa-btn-primary";
+
+export const FORM_SECONDARY_BUTTON_CLASS = "tsa-btn-secondary";
+
+export const FORM_DANGER_BUTTON_CLASS = "tsa-btn-danger";
+
+export const FORM_SHELL_CLASS = "tsa-course-form";
+
+export const FORM_SHELL_BAR_CLASS = "tsa-course-form-bar";
+
+export const FORM_SHELL_BODY_CLASS = "tsa-course-form-body";
+
+export const FORM_FIELD_SPAN_2_CLASS = "tsa-field-span-2";

@@ -67,6 +67,29 @@ export async function getUserProfile(uid: string) {
   return profileSnap.exists() ? (profileSnap.data() as UserProfile) : null;
 }
 
+export async function markPageGuideSeen(uid: string, guideId: string) {
+  const db = getDb();
+  const profileRef = doc(db, userProfilePath(uid));
+  const profileSnap = await getDoc(profileRef);
+  const existing = profileSnap.exists()
+    ? ((profileSnap.data() as UserProfile).seenPageGuides ?? [])
+    : [];
+
+  if (existing.includes(guideId)) {
+    return;
+  }
+
+  await setDoc(
+    profileRef,
+    {
+      seenPageGuides: [...existing, guideId],
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+/** @deprecated Use markPageGuideSeen for per-page tips. */
 export async function markAppGuideSeen(uid: string) {
   const db = getDb();
   await setDoc(
@@ -122,7 +145,7 @@ export async function completeOnboarding(uid: string, payload: OnboardingPayload
       programmeOfStudy: payload.programmeOfStudy.trim() || null,
       gradeMode: payload.gradeMode,
       onboardingComplete: true,
-      hasSeenAppGuide: false,
+      seenPageGuides: [],
       activeSemesterId: semesterId,
       updatedAt: serverTimestamp(),
     },

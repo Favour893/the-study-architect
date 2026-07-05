@@ -19,6 +19,14 @@ import {
 import { useAuth } from "@/providers/auth-provider";
 import { useSemester } from "@/providers/semester-provider";
 import { useToast } from "@/providers/toast-provider";
+import {
+  FORM_DANGER_BUTTON_CLASS,
+  FORM_INPUT_ACCENT,
+  FORM_INPUT_READONLY_CLASS,
+  FORM_PRIMARY_BUTTON_CLASS,
+  FORM_SECONDARY_BUTTON_CLASS,
+  FORM_SELECT_CLASS,
+} from "@/lib/ui/form-styles";
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const dayAccent: Record<string, string> = {
@@ -28,8 +36,7 @@ const dayAccent: Record<string, string> = {
   Thursday: "text-amber-700 dark:text-amber-300",
   Friday: "text-rose-700 dark:text-rose-300",
 };
-const inputClass =
-  "rounded-md border border-app-border bg-app-accent-soft/40 px-2 py-1 text-sm text-app-fg outline-none ring-app-accent focus:bg-panel focus:ring-2";
+const inputClass = `${FORM_INPUT_ACCENT} px-2 py-1`;
 const defaultStartHour = DEFAULT_TIMETABLE_START_HOUR;
 const defaultEndHour = DEFAULT_TIMETABLE_END_HOUR;
 const NEW_COURSE_VALUE = "__new_course__";
@@ -759,7 +766,7 @@ export default function TimetablePage() {
 
       <p className="text-xs text-app-subtle md:hidden">Swipe horizontally to view all time slots.</p>
 
-      <div className="min-w-0 overflow-hidden rounded-xl border border-app-border bg-panel shadow-sm">
+      <div className="min-w-0 overflow-hidden rounded-xl border border-app-border bg-panel shadow-sm" data-page-guide="timetable-grid">
         <div className="h-1 bg-gradient-to-r from-sky-500 via-violet-500 to-rose-500" />
         <div className="overflow-x-auto overscroll-x-contain">
           <table
@@ -835,7 +842,7 @@ export default function TimetablePage() {
                         courseId === NEW_COURSE_VALUE ? current.lecturerName : selected?.lecturerName ?? "",
                     }));
                   }}
-                  className="w-full rounded-md border border-app-border bg-white px-3 py-2 text-sm outline-none ring-app-accent transition focus:ring-2"
+                  className={FORM_SELECT_CLASS}
                 >
                   <option value="">Select existing course</option>
                   <option value={NEW_COURSE_VALUE}>+ Add new course</option>
@@ -853,7 +860,7 @@ export default function TimetablePage() {
                     setDraftEntry((current) => ({ ...current, courseName: event.target.value }))
                   }
                   placeholder="New course name"
-                  className="w-full rounded-md border border-app-border bg-white px-3 py-2 text-sm outline-none ring-app-accent transition focus:ring-2"
+                  className={`w-full ${FORM_INPUT_ACCENT}`}
                 />
               ) : null}
               <input
@@ -867,11 +874,9 @@ export default function TimetablePage() {
                     ? "Lecturer name"
                     : "Lecturer name (from course)"
                 }
-                className={`w-full rounded-md border border-app-border px-3 py-2 text-sm outline-none ${
-                  draftEntry.courseId === NEW_COURSE_VALUE
-                    ? "bg-white ring-app-accent transition focus:ring-2"
-                    : "bg-app-muted text-app-subtle"
-                }`}
+                className={
+                  draftEntry.courseId === NEW_COURSE_VALUE ? FORM_INPUT_ACCENT : FORM_INPUT_READONLY_CLASS
+                }
               />
               <input
                 value={draftEntry.location}
@@ -879,7 +884,7 @@ export default function TimetablePage() {
                   setDraftEntry((current) => ({ ...current, location: event.target.value }))
                 }
                 placeholder="Class location"
-                className="w-full rounded-md border border-app-border bg-white px-3 py-2 text-sm outline-none ring-app-accent transition focus:ring-2"
+                className={`w-full ${FORM_INPUT_ACCENT}`}
               />
               <label className="block space-y-1">
                 <span className="text-sm text-app-subtle">Duration (hours)</span>
@@ -896,7 +901,7 @@ export default function TimetablePage() {
                       durationHours: Math.max(1, Number(event.target.value) || 1),
                     }))
                   }
-                  className="w-full rounded-md border border-app-border bg-white px-3 py-2 text-sm outline-none ring-app-accent transition focus:ring-2"
+                  className={`w-full ${FORM_INPUT_ACCENT}`}
                 />
               </label>
               <div className="flex justify-end gap-2">
@@ -904,22 +909,15 @@ export default function TimetablePage() {
                   <button
                     type="button"
                     onClick={clearEditorEntry}
-                    className="mr-auto rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"
+                    className={`mr-auto ${FORM_DANGER_BUTTON_CLASS}`}
                   >
                     Clear cell
                   </button>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={closeEditor}
-                  className="rounded-md border border-app-border bg-white px-3 py-2 text-sm text-app-fg hover:bg-app-muted"
-                >
+                <button type="button" onClick={closeEditor} className={FORM_SECONDARY_BUTTON_CLASS}>
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="rounded-md bg-gradient-to-r from-app-accent to-app-violet px-3 py-2 text-sm font-medium text-white hover:opacity-95"
-                >
+                <button type="submit" className={FORM_PRIMARY_BUTTON_CLASS}>
                   Save
                 </button>
               </div>

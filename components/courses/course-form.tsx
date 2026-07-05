@@ -1,7 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { FORM_INPUT_CLASS, FORM_PRIMARY_BUTTON_CLASS } from "@/lib/ui/form-styles";
+import {
+  FORM_FIELD_SPAN_2_CLASS,
+  FORM_INPUT_ACCENT,
+  FORM_INPUT_INFO,
+  FORM_INPUT_TEAL,
+  FORM_INPUT_VIOLET,
+  FORM_PRIMARY_BUTTON_CLASS,
+  FORM_SHELL_BAR_CLASS,
+  FORM_SHELL_BODY_CLASS,
+  FORM_SHELL_CLASS,
+} from "@/lib/ui/form-styles";
 
 type CourseFormProps = {
   onCreate: (payload: {
@@ -40,40 +50,40 @@ export function CourseForm({ onCreate, onValidationError }: CourseFormProps) {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="grid gap-2 rounded-2xl border border-app-border bg-panel p-3 md:grid-cols-6"
-    >
-      <input
-        value={title}
-        onChange={(event) => setTitle(event.target.value)}
-        placeholder="Course title"
-        className={`${FORM_INPUT_CLASS} md:col-span-2`}
-      />
-      <input
-        value={code}
-        onChange={(event) => setCode(event.target.value)}
-        placeholder="Code (optional)"
-        className={FORM_INPUT_CLASS}
-      />
-      <input
-        type="number"
-        min={1}
-        max={30}
-        value={creditUnits}
-        onChange={(event) => setCreditUnits(Number(event.target.value) || 3)}
-        placeholder="Credits"
-        className={FORM_INPUT_CLASS}
-      />
-      <input
-        value={lecturerName}
-        onChange={(event) => setLecturerName(event.target.value)}
-        placeholder="Lecturer name"
-        className={FORM_INPUT_CLASS}
-      />
-      <button type="submit" disabled={isSubmitting} className={FORM_PRIMARY_BUTTON_CLASS}>
-        {isSubmitting ? "Adding..." : "Create course"}
-      </button>
+    <form onSubmit={handleSubmit} className={FORM_SHELL_CLASS}>
+      <div className={FORM_SHELL_BAR_CLASS} />
+      <div className={FORM_SHELL_BODY_CLASS}>
+        <input
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          placeholder="Course title"
+          className={`${FORM_INPUT_ACCENT} ${FORM_FIELD_SPAN_2_CLASS}`}
+        />
+        <input
+          value={code}
+          onChange={(event) => setCode(event.target.value)}
+          placeholder="Code (optional)"
+          className={FORM_INPUT_VIOLET}
+        />
+        <input
+          type="number"
+          min={1}
+          max={30}
+          value={creditUnits}
+          onChange={(event) => setCreditUnits(Number(event.target.value) || 3)}
+          placeholder="Credits"
+          className={FORM_INPUT_TEAL}
+        />
+        <input
+          value={lecturerName}
+          onChange={(event) => setLecturerName(event.target.value)}
+          placeholder="Lecturer name"
+          className={FORM_INPUT_INFO}
+        />
+        <button type="submit" disabled={isSubmitting} className={FORM_PRIMARY_BUTTON_CLASS}>
+          {isSubmitting ? "Adding..." : "Create course"}
+        </button>
+      </div>
     </form>
   );
 }

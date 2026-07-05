@@ -8,8 +8,10 @@ export type UserProfile = {
   programmeOfStudy?: string | null;
   gradeMode: GradeMode | null;
   onboardingComplete: boolean;
-  /** Shown once after semester onboarding — app feature tour on Pulse. */
+  /** @deprecated Legacy flag — prefer seenPageGuides per page. */
   hasSeenAppGuide?: boolean;
+  /** Page-specific coach tips the user has dismissed (e.g. dashboard, courses). */
+  seenPageGuides?: string[];
   activeSemesterId: string | null;
   createdAt?: unknown;
   updatedAt?: unknown;

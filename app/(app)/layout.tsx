@@ -1,6 +1,6 @@
 import { AuthGate } from "@/components/auth/auth-gate";
 import { AppProviders } from "@/components/providers/app-providers";
-import { AppGuideHost } from "@/components/onboarding/app-guide-host";
+import { PageGuideRouter } from "@/components/onboarding/page-guide-router";
 import { AppShell } from "@/components/layout/app-shell";
 
 type AppLayoutProps = {
@@ -12,7 +12,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <AuthGate>
       <AppProviders>
         <AppShell>{children}</AppShell>
-        <AppGuideHost />
+        <PageGuideRouter />
       </AppProviders>
     </AuthGate>
   );

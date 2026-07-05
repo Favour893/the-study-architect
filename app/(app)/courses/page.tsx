@@ -158,7 +158,7 @@ export default function CoursesPage() {
         <h2 className="text-lg font-semibold text-app-fg">Course Cards</h2>
       </header>
 
-      <div className="shrink-0">
+      <div className="shrink-0" data-page-guide="courses-form">
         <CourseForm onCreate={handleCreateCourse} onValidationError={handleCourseFormValidation} />
       </div>
 

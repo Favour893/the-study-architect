@@ -2,14 +2,17 @@
 
 import { signOutUser } from "@/lib/firebase/auth";
 import { getUserProfile, updateUserProfileProgramme } from "@/lib/data/semesters";
+import { pathnameToPageGuideId } from "@/lib/onboarding/page-guides";
 import { useAuth } from "@/providers/auth-provider";
 import { useTheme } from "@/providers/theme-provider";
 import { useToast } from "@/providers/toast-provider";
 import { CircleUser, Moon, Sun } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 export function UserProfileMenu() {
   const { user } = useAuth();
+  const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
   const { pushToast } = useToast();
   const [open, setOpen] = useState(false);
@@ -156,12 +159,19 @@ export function UserProfileMenu() {
             type="button"
             onClick={() => {
               setOpen(false);
-              window.dispatchEvent(new CustomEvent("tsa:open-app-guide"));
+              const guideId = pathnameToPageGuideId(pathname);
+              if (!guideId) {
+                pushToast("No tips on this page — open Dashboard, Courses, or another main screen.", "info");
+                return;
+              }
+              window.dispatchEvent(
+                new CustomEvent("tsa:replay-page-guide", { detail: { guideId } }),
+              );
             }}
             className="mt-3 w-full rounded-md border border-app-border bg-panel px-2 py-1.5 text-sm text-app-fg transition hover:bg-app-muted"
             role="menuitem"
           >
-            View app tour
+            Tips for this page
           </button>
 
           <button

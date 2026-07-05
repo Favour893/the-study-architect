@@ -434,7 +434,7 @@ export default function DashboardPage() {
         <p className="text-sm font-semibold text-app-violet">The Pulse</p>
         <h2 className="mt-1 text-xl font-semibold text-app-fg">{pulseTitle}</h2>
         <p className="mt-2 text-sm text-app-subtle">{pulseBody}</p>
-        <div className="mt-5 space-y-2">
+        <div className="mt-5 space-y-2" data-page-guide="pulse-progress">
           <div className="h-2.5 w-full overflow-hidden rounded-full bg-app-muted">
             <div
               className="h-full min-w-0 rounded-full bg-gradient-to-r from-sky-500 via-violet-500 to-teal-400 transition-[width] duration-300"
@@ -447,7 +447,7 @@ export default function DashboardPage() {
           <p className="text-xs text-app-subtle">{semesterProgressLabel}</p>
         </div>
 
-        <div className="mt-5 space-y-2 border-t border-app-border pt-5">
+        <div className="mt-5 space-y-2 border-t border-app-border pt-5" data-page-guide="pulse-ai">
           <p className="text-sm text-app-subtle">AI study nudge</p>
           <button
             type="button"
@@ -524,7 +524,7 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
+      <section className="grid gap-4 md:grid-cols-2" data-page-guide="pulse-classes">
         <article className="rounded-2xl border border-app-border border-l-4 border-l-sky-500 bg-panel p-5 shadow-sm">
           <p className="text-sm font-semibold text-sky-600 dark:text-sky-400">Current class</p>
           <p className="mt-1 text-base font-medium text-app-fg">{currentClassLabel}</p>
