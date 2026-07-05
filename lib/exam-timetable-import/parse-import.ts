@@ -5,6 +5,7 @@ import {
   type ExamTimetableColumn,
   type ExamTimetableRow,
 } from "../exam-timetable-storage";
+import { parseFlexibleDateToIso, parseTimeToInputValue } from "../exam-timetable-dates";
 
 export type ExamImportEntry = {
   day?: string;
@@ -100,9 +101,6 @@ function ensureExtraColumns(
     }
   }
   for (const entry of entries) {
-    if (entry.time && !columnByKey(next, "time")) {
-      labels.add("Time");
-    }
     for (const label of Object.keys(entry.extras ?? {})) {
       labels.add(label);
     }
@@ -110,14 +108,10 @@ function ensureExtraColumns(
 
   for (const label of labels) {
     const key = label.toLowerCase().replace(/\s+/g, "_");
-    if (next.some((col) => col.key === key || col.label.toLowerCase() === label.toLowerCase())) {
+    if (key === "time" || next.some((col) => col.key === key || col.label.toLowerCase() === label.toLowerCase())) {
       continue;
     }
     next.push(createExamColumn(label, next));
-  }
-
-  if (entries.some((e) => e.time) && !next.some((col) => col.key === "time")) {
-    next.push(createExamColumn("Time", next));
   }
 
   return next;
@@ -130,19 +124,18 @@ export function buildExamRowsFromImport(
   let columns = existingColumns?.length ? [...existingColumns] : [...DEFAULT_EXAM_COLUMNS];
   columns = ensureExtraColumns(columns, payload.entries, payload.extraColumnLabels);
 
-  const dayCol = columnByKey(columns, "day");
-  const dateCol = columnByKey(columns, "date");
+  const examDateCol = columnByKey(columns, "exam_date");
   const courseCol = columnByKey(columns, "course");
   const venueCol = columnByKey(columns, "venue");
   const timeCol = columnByKey(columns, "time");
 
   const rows: ExamTimetableRow[] = payload.entries.map((entry) => {
     const row = createEmptyExamRow(columns);
-    if (dayCol && entry.day) {
-      row.cells[dayCol.id] = entry.day;
-    }
-    if (dateCol && entry.date) {
-      row.cells[dateCol.id] = entry.date;
+    if (examDateCol) {
+      const iso = parseFlexibleDateToIso(entry.date ?? "", entry.day) ?? entry.date ?? entry.day ?? "";
+      if (iso) {
+        row.cells[examDateCol.id] = iso;
+      }
     }
     if (courseCol && entry.course) {
       row.cells[courseCol.id] = entry.course;
@@ -151,7 +144,7 @@ export function buildExamRowsFromImport(
       row.cells[venueCol.id] = entry.venue;
     }
     if (timeCol && entry.time) {
-      row.cells[timeCol.id] = entry.time;
+      row.cells[timeCol.id] = parseTimeToInputValue(entry.time) || entry.time;
     }
     for (const [label, value] of Object.entries(entry.extras ?? {})) {
       const col = columns.find((c) => c.label.toLowerCase() === label.toLowerCase());

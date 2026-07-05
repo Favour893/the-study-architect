@@ -1,3 +1,5 @@
+import { parseFlexibleDateToIso, parseTimeToInputValue } from "./exam-timetable-dates";
+
 export const EXAM_TIMETABLE_STORAGE_VERSION = 1 as const;
 
 export type ExamTimetableColumn = {
@@ -20,8 +22,8 @@ export type ExamTimetableStorage = {
 };
 
 export const DEFAULT_EXAM_COLUMNS: ExamTimetableColumn[] = [
-  { id: "col-day", key: "day", label: "Day" },
-  { id: "col-date", key: "date", label: "Date" },
+  { id: "col-exam-date", key: "exam_date", label: "Date" },
+  { id: "col-time", key: "time", label: "Time" },
   { id: "col-course", key: "course", label: "Course" },
   { id: "col-venue", key: "venue", label: "Venue" },
 ];
@@ -110,7 +112,7 @@ export function parseExamTimetableStorage(raw: unknown): ExamTimetableStorage | 
     ? raw.rows.map((row) => parseRow(row, columnIds)).filter((row): row is ExamTimetableRow => row !== null)
     : [];
 
-  return { v: EXAM_TIMETABLE_STORAGE_VERSION, columns, rows };
+  return normalizeExamTimetableLayout({ v: EXAM_TIMETABLE_STORAGE_VERSION, columns, rows });
 }
 
 export function parseExamTimetableFromRemote(raw: unknown): ExamTimetableStorage | null {
@@ -159,4 +161,59 @@ export function defaultExamTimetableStorage(): ExamTimetableStorage {
 
 export function isDefaultExamColumn(column: ExamTimetableColumn) {
   return DEFAULT_EXAM_COLUMNS.some((def) => def.key === column.key);
+}
+
+function alignRowCells(row: ExamTimetableRow, columns: ExamTimetableColumn[]): ExamTimetableRow {
+  const cells: Record<string, string> = {};
+  for (const col of columns) {
+    cells[col.id] = row.cells[col.id] ?? "";
+  }
+  return { ...row, cells };
+}
+
+/** Migrate legacy day/date columns and ensure time column before course. */
+export function normalizeExamTimetableLayout(storage: ExamTimetableStorage): ExamTimetableStorage {
+  let columns = [...storage.columns];
+  let rows = storage.rows.map((row) => ({ ...row, cells: { ...row.cells } }));
+
+  const dayCol = columns.find((c) => c.key === "day");
+  const dateCol = columns.find((c) => c.key === "date");
+  let examDateCol = columns.find((c) => c.key === "exam_date");
+
+  if ((dayCol || dateCol) && !examDateCol) {
+    examDateCol = DEFAULT_EXAM_COLUMNS[0]!;
+    columns = columns.filter((c) => c.key !== "day" && c.key !== "date");
+    columns.unshift(examDateCol);
+    rows = rows.map((row) => {
+      const dayVal = dayCol ? row.cells[dayCol.id] ?? "" : "";
+      const dateVal = dateCol ? row.cells[dateCol.id] ?? "" : "";
+      const iso = parseFlexibleDateToIso(dateVal, dayVal) ?? dateVal;
+      const cells = { ...row.cells };
+      if (dayCol) {
+        delete cells[dayCol.id];
+      }
+      if (dateCol) {
+        delete cells[dateCol.id];
+      }
+      cells[examDateCol!.id] = iso;
+      return { ...row, cells };
+    });
+  }
+
+  if (!columns.some((c) => c.key === "time")) {
+    const timeCol = DEFAULT_EXAM_COLUMNS.find((c) => c.key === "time")!;
+    const courseIdx = columns.findIndex((c) => c.key === "course");
+    if (courseIdx >= 0) {
+      columns.splice(courseIdx, 0, timeCol);
+    } else {
+      columns.push(timeCol);
+    }
+  }
+
+  if (!columns.some((c) => c.key === "exam_date")) {
+    columns.unshift(DEFAULT_EXAM_COLUMNS[0]!);
+  }
+
+  rows = rows.map((row) => alignRowCells(row, columns));
+  return { ...storage, columns, rows };
 }

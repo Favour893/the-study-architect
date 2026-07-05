@@ -14,6 +14,11 @@ import {
   Trash2,
 } from "lucide-react";
 import {
+  formatExamDateDisplay,
+  formatTimeDisplay,
+  toDateInputValue,
+} from "@/lib/exam-timetable-dates";
+import {
   fetchExamTimetableFromFirestore,
   saveExamTimetableToFirestore,
 } from "@/lib/data/exam-timetable";
@@ -31,10 +36,12 @@ import {
 } from "@/lib/exam-timetable-storage";
 import { getClientAuth } from "@/lib/firebase/auth";
 import { hasFirebaseConfig } from "@/lib/firebase/client";
+import type { Course } from "@/lib/types/domain";
 import {
   FORM_INPUT_ACCENT,
   FORM_PRIMARY_BUTTON_CLASS,
   FORM_SECONDARY_BUTTON_CLASS,
+  FORM_SELECT_CLASS,
 } from "@/lib/ui/form-styles";
 import { useAuth } from "@/providers/auth-provider";
 import { useToast } from "@/providers/toast-provider";
@@ -45,7 +52,12 @@ const ALARM_MAX_MS = 30 * 24 * 60 * 60 * 1000;
 type ExamTimetableSectionProps = {
   activeSemesterId: string | null;
   semesterLoading: boolean;
+  courses: Course[];
 };
+
+function courseLabel(course: Pick<Course, "title" | "code">) {
+  return course.code?.trim() ? `${course.title} (${course.code})` : course.title;
+}
 
 async function readImageAsBase64(file: File): Promise<{ base64: string; mimeType: string }> {
   if (file.size > MAX_BYTES) {
@@ -105,7 +117,11 @@ function cellByKey(row: ExamTimetableRow, columns: ExamTimetableColumn[], key: s
   return col ? row.cells[col.id] ?? "" : "";
 }
 
-export function ExamTimetableSection({ activeSemesterId, semesterLoading }: ExamTimetableSectionProps) {
+export function ExamTimetableSection({
+  activeSemesterId,
+  semesterLoading,
+  courses,
+}: ExamTimetableSectionProps) {
   const { user } = useAuth();
   const { pushToast } = useToast();
   const [hydrated, setHydrated] = useState(false);
@@ -373,6 +389,89 @@ export function ExamTimetableSection({ activeSemesterId, semesterLoading }: Exam
     }
   }
 
+  function renderCellInput(row: ExamTimetableRow, col: ExamTimetableColumn) {
+    const value = row.cells[col.id] ?? "";
+
+    if (col.key === "exam_date") {
+      const iso = toDateInputValue(value);
+      const weekday = iso ? formatExamDateDisplay(iso).split(",")[0]?.trim() : "";
+      return (
+        <div className="flex min-w-[11rem] items-center gap-2">
+          <span
+            className={`w-[5rem] shrink-0 text-xs font-semibold leading-tight ${
+              weekday ? "text-app-accent" : "text-app-subtle/40"
+            }`}
+          >
+            {weekday || "Day"}
+          </span>
+          <input
+            type="date"
+            value={iso}
+            title={iso ? formatExamDateDisplay(iso) : undefined}
+            onChange={(event) => updateCell(row.id, col.id, event.target.value)}
+            className={`min-w-0 flex-1 ${FORM_INPUT_ACCENT} px-2 py-1.5 text-sm`}
+            aria-label={weekday ? `Exam date, ${weekday}` : "Exam date"}
+          />
+        </div>
+      );
+    }
+
+    if (col.key === "time") {
+      return (
+        <input
+          type="time"
+          value={value}
+          onChange={(event) => updateCell(row.id, col.id, event.target.value)}
+          className={`w-full min-w-[8rem] ${FORM_INPUT_ACCENT} px-2 py-1.5 text-sm`}
+          aria-label="Exam time"
+        />
+      );
+    }
+
+    if (col.key === "course") {
+      if (courses.length === 0) {
+        return (
+          <input
+            value={value}
+            onChange={(event) => updateCell(row.id, col.id, event.target.value)}
+            placeholder="Course name"
+            className={`w-full min-w-[10rem] ${FORM_INPUT_ACCENT} px-2 py-1.5 text-sm`}
+            aria-label="Course"
+          />
+        );
+      }
+      const knownTitles = new Set(courses.map((c) => c.title));
+      const isUnknown = value.length > 0 && !knownTitles.has(value);
+      return (
+        <select
+          value={value}
+          onChange={(event) => updateCell(row.id, col.id, event.target.value)}
+          className={`w-full min-w-[10rem] ${FORM_SELECT_CLASS} py-1.5 text-sm`}
+          aria-label="Course"
+        >
+          <option value="">Choose course…</option>
+          {courses.map((course) => (
+            <option key={course.id} value={course.title}>
+              {courseLabel(course)}
+            </option>
+          ))}
+          {isUnknown ? (
+            <option value={value}>{value}</option>
+          ) : null}
+        </select>
+      );
+    }
+
+    return (
+      <input
+        value={value}
+        onChange={(event) => updateCell(row.id, col.id, event.target.value)}
+        placeholder={col.label}
+        className={`w-full min-w-[7rem] ${FORM_INPUT_ACCENT} px-2 py-1.5 text-sm`}
+      />
+    );
+  }
+
   if (!hydrated) {
     return (
       <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
@@ -495,12 +594,7 @@ export function ExamTimetableSection({ activeSemesterId, semesterLoading }: Exam
                   <tr key={row.id} className="border-b border-app-border last:border-b-0">
                     {columns.map((col) => (
                       <td key={col.id} className="px-2 py-1.5 align-top">
-                        <input
-                          value={row.cells[col.id] ?? ""}
-                          onChange={(event) => updateCell(row.id, col.id, event.target.value)}
-                          placeholder={col.label}
-                          className={`w-full min-w-[7rem] ${FORM_INPUT_ACCENT} px-2 py-1.5 text-sm`}
-                        />
+                        {renderCellInput(row, col)}
                       </td>
                     ))}
                     <td className="px-2 py-1.5 align-top">
@@ -553,7 +647,7 @@ export function ExamTimetableSection({ activeSemesterId, semesterLoading }: Exam
             <input
               value={newColumnLabel}
               onChange={(event) => setNewColumnLabel(event.target.value)}
-              placeholder="New column name (e.g. Time)"
+              placeholder="New column name (e.g. Seat)"
               className={`min-w-0 flex-1 ${FORM_INPUT_ACCENT} px-3 py-1.5 text-sm`}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -589,11 +683,15 @@ export function ExamTimetableSection({ activeSemesterId, semesterLoading }: Exam
                 {previewBuilt.rows.map((row) => (
                   <li key={row.id} className="rounded-lg border border-app-border px-3 py-2 text-app-fg">
                     <span className="font-medium">{cellByKey(row, previewBuilt.columns, "course") || "Exam"}</span>
-                    {cellByKey(row, previewBuilt.columns, "day") ? (
-                      <span className="text-app-subtle"> · {cellByKey(row, previewBuilt.columns, "day")}</span>
+                    {cellByKey(row, previewBuilt.columns, "exam_date") ? (
+                      <span className="block text-xs text-app-subtle">
+                        {formatExamDateDisplay(cellByKey(row, previewBuilt.columns, "exam_date"))}
+                      </span>
                     ) : null}
-                    {cellByKey(row, previewBuilt.columns, "date") ? (
-                      <span className="block text-xs text-app-subtle">{cellByKey(row, previewBuilt.columns, "date")}</span>
+                    {cellByKey(row, previewBuilt.columns, "time") ? (
+                      <span className="block text-xs text-app-subtle">
+                        {formatTimeDisplay(cellByKey(row, previewBuilt.columns, "time"))}
+                      </span>
                     ) : null}
                     {cellByKey(row, previewBuilt.columns, "venue") ? (
                       <span className="block text-xs text-app-subtle">

@@ -943,7 +943,11 @@ export default function TimetablePage() {
         </div>
       ) : null}
 
-      <ExamTimetableSection activeSemesterId={activeSemesterId} semesterLoading={semesterLoading} />
+      <ExamTimetableSection
+        activeSemesterId={activeSemesterId}
+        semesterLoading={semesterLoading}
+        courses={courses}
+      />
     </div>
   );
 }
