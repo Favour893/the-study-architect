@@ -1,6 +1,6 @@
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { getDb } from "../firebase/db";
-import type { CoursePlan, CourseTodo } from "../types/domain";
+import type { CourseNote, CoursePlan, CourseTodo } from "../types/domain";
 
 function coursePlanPath(uid: string, semesterId: string, courseId: string) {
   return `users/${uid}/semesters/${semesterId}/courses/${courseId}/plan/main`;
@@ -24,6 +24,49 @@ function normalizeTodo(value: unknown): CourseTodo | null {
   };
 }
 
+function normalizeNote(value: unknown): CourseNote | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const row = value as Record<string, unknown>;
+  const body = typeof row.body === "string" ? row.body.trim() : "";
+  if (!body) {
+    return null;
+  }
+  const now = new Date().toISOString();
+  const createdAt = typeof row.createdAt === "string" && row.createdAt ? row.createdAt : now;
+  const updatedAt = typeof row.updatedAt === "string" && row.updatedAt ? row.updatedAt : createdAt;
+  return {
+    id: typeof row.id === "string" ? row.id : crypto.randomUUID(),
+    title: typeof row.title === "string" ? row.title.trim() : "",
+    body,
+    createdAt,
+    updatedAt,
+  };
+}
+
+function normalizeNotesFromFirestore(data: Record<string, unknown>): CourseNote[] {
+  if (Array.isArray(data.notes)) {
+    return data.notes
+      .map(normalizeNote)
+      .filter((note): note is CourseNote => note !== null)
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  }
+  if (typeof data.notes === "string" && data.notes.trim()) {
+    const now = new Date().toISOString();
+    return [
+      {
+        id: crypto.randomUUID(),
+        title: "",
+        body: data.notes.trim(),
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+  }
+  return [];
+}
+
 export async function getCoursePlan(
   uid: string,
   semesterId: string,
@@ -32,14 +75,14 @@ export async function getCoursePlan(
   const db = getDb();
   const snapshot = await getDoc(doc(db, coursePlanPath(uid, semesterId, courseId)));
   if (!snapshot.exists()) {
-    return { notes: "", todos: [] };
+    return { notes: [], todos: [] };
   }
   const data = snapshot.data() as Record<string, unknown>;
   const todos = Array.isArray(data.todos)
     ? data.todos.map(normalizeTodo).filter((todo): todo is CourseTodo => todo !== null)
     : [];
   return {
-    notes: typeof data.notes === "string" ? data.notes : "",
+    notes: normalizeNotesFromFirestore(data),
     todos,
   };
 }
@@ -54,7 +97,13 @@ export async function saveCoursePlan(
   await setDoc(
     doc(db, coursePlanPath(uid, semesterId, courseId)),
     {
-      notes: plan.notes,
+      notes: plan.notes.map((note) => ({
+        id: note.id,
+        title: note.title.trim(),
+        body: note.body.trim(),
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+      })),
       todos: plan.todos.map((todo) => ({
         id: todo.id,
         title: todo.title.trim(),

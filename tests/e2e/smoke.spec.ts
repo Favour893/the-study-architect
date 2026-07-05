@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const TEST_COURSE_TITLE = "Engineering Stress Test";
-const TEST_TOPIC_TITLE = "Structural Integrity";
+const TEST_TODO_TITLE = "Structural Integrity";
 
 const useEmulator = process.env.TSA_E2E_USE_EMULATOR === "true";
 const email = process.env.TSA_E2E_EMAIL ?? (useEmulator ? "e2e@demo-tsa.local" : "");
@@ -39,17 +39,14 @@ test("critical path smoke test", async ({ page }) => {
 
   const courseCard = page.locator("article", { hasText: TEST_COURSE_TITLE }).first();
   await expect(courseCard).toBeVisible();
-  await courseCard.getByRole("link", { name: "Open syllabus" }).click();
+  await courseCard.getByRole("link", { name: "Open course" }).click();
 
-  await page.getByPlaceholder("Add topic (e.g. Thermodynamics)").fill(TEST_TOPIC_TITLE);
-  await page.getByRole("button", { name: "Add topic" }).click();
-  await expect(page.getByText(TEST_TOPIC_TITLE)).toBeVisible();
-
-  await page.getByRole("combobox").first().selectOption("taught");
+  await page.getByPlaceholder("e.g. Finish problem set 3").fill(TEST_TODO_TITLE);
+  await page.getByRole("button", { name: "Add" }).click();
+  await expect(page.getByText(TEST_TODO_TITLE)).toBeVisible();
 
   await page.goto("/dashboard");
-  await page.getByRole("button", { name: "Get a tailored next step" }).click();
-  await expect(page.getByText("Study mission")).toBeVisible();
+  await expect(page.getByText(TEST_TODO_TITLE)).toBeVisible();
 
   await page.goto("/courses");
   const freshCourseCard = page.locator("article", { hasText: TEST_COURSE_TITLE }).first();

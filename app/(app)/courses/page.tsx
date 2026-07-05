@@ -5,7 +5,6 @@ import { Sparkles } from "lucide-react";
 import { CourseCard } from "@/components/courses/course-card";
 import { CourseForm } from "@/components/courses/course-form";
 import { createCourse, deleteCourse, listCourses, updateCourse } from "@/lib/data/courses";
-import { createTopic } from "@/lib/data/topics";
 import type { Course } from "@/lib/types/domain";
 import { useAuth } from "@/providers/auth-provider";
 import { useSemester } from "@/providers/semester-provider";
@@ -112,14 +111,12 @@ export default function CoursesPage() {
       return;
     }
     try {
-      const courseId = await createCourse(user.uid, activeSemesterId, {
+      await createCourse(user.uid, activeSemesterId, {
         title: "Engineering Mathematics",
         code: "MTH 201",
         lecturerName: "Dr. Adaobi",
         creditUnits: 3,
       });
-      await createTopic(user.uid, activeSemesterId, courseId, { title: "Differential Equations" });
-      await createTopic(user.uid, activeSemesterId, courseId, { title: "Laplace Transform" });
       await loadCourses(user.uid, activeSemesterId);
       pushToast("Sample course created.", "success");
     } catch {

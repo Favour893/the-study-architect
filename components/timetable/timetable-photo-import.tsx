@@ -190,48 +190,41 @@ export function TimetablePhotoImport({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-violet-300/40 bg-gradient-to-r from-app-violet-soft/50 to-app-accent-soft/50 p-3 dark:border-violet-800/40">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-app-fg">Import from photo</p>
-          <p className="text-xs text-app-subtle">
-            Reads courses, codes, lecturers, venues, days and times — then fills your timetable and course cards.
-          </p>
-        </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-          className="hidden"
-          onChange={(event) => void handleFile(event.target.files?.[0])}
-        />
-        <input
-          ref={cameraRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          capture="environment"
-          className="hidden"
-          onChange={(event) => void handleFile(event.target.files?.[0])}
-        />
-        <div className="relative" ref={menuRef}>
-          <button
-            type="button"
-            disabled={isScanning || !user || !activeSemesterId}
-            onClick={() => setMenuOpen((open) => !open)}
-            className={`inline-flex items-center gap-1.5 ${FORM_PRIMARY_BUTTON_CLASS}`}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        onChange={(event) => void handleFile(event.target.files?.[0])}
+      />
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        capture="environment"
+        className="hidden"
+        onChange={(event) => void handleFile(event.target.files?.[0])}
+      />
+      <div className="relative shrink-0" ref={menuRef}>
+        <button
+          type="button"
+          disabled={isScanning || !user || !activeSemesterId}
+          onClick={() => setMenuOpen((open) => !open)}
+          className={`inline-flex items-center gap-1.5 ${FORM_PRIMARY_BUTTON_CLASS}`}
+        >
+          {isScanning ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <ScanLine className="h-4 w-4" />
+          )}
+          Import timetable photo
+          <ChevronDown className="h-4 w-4 opacity-80" />
+        </button>
+        {menuOpen ? (
+          <div
+            className="absolute right-0 top-full z-20 mt-1.5 min-w-[11rem] overflow-hidden rounded-xl border border-app-border bg-panel py-1 shadow-lg"
+            role="menu"
           >
-            {isScanning ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ScanLine className="h-4 w-4" />
-            )}
-            Import timetable photo
-            <ChevronDown className="h-4 w-4 opacity-80" />
-          </button>
-          {menuOpen ? (
-            <div
-              className="absolute right-0 top-full z-20 mt-1.5 min-w-[11rem] overflow-hidden rounded-xl border border-app-border bg-panel py-1 shadow-lg"
-              role="menu"
-            >
               <button
                 type="button"
                 role="menuitem"
@@ -252,7 +245,6 @@ export function TimetablePhotoImport({
               </button>
             </div>
           ) : null}
-        </div>
       </div>
 
       {preview && previewPlan ? (

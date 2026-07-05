@@ -735,55 +735,58 @@ export default function TimetablePage() {
         </div>
       </header>
 
-      <TimetablePhotoImport
-        courses={courses}
-        activeSemesterId={activeSemesterId}
-        defaultStartHour={defaultStartHour}
-        defaultEndHour={defaultEndHour}
-        onCoursesCreated={(created) => setCourses((current) => [...current, ...created])}
-        onImportApplied={({ entries: importedEntries, startHour: importedStart, endHour: importedEnd }) => {
-          setStartHour((current) => Math.min(current, importedStart));
-          setEndHour((current) => Math.max(current, importedEnd, requiredEndHourForEntries(importedEntries)));
-          setEntries((current) => ({ ...current, ...importedEntries }));
-          setTimeError(null);
-        }}
-      />
-
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-app-border bg-panel p-3 shadow-sm">
-        <label className="flex items-center gap-2 text-sm font-medium text-app-accent">
-          Start
-          <input
-            defaultValue={hourToKey(startHour)}
-            onBlur={(event) => updateStartHour(event.target.value)}
-            className={`w-20 ${inputClass}`}
-            aria-label="Timetable start hour"
-          />
-        </label>
-        <label className="flex items-center gap-2 text-sm font-medium text-app-teal">
-          End
-          <input
-            defaultValue={hourToKey(endHour)}
-            onBlur={(event) => updateEndHour(event.target.value)}
-            className={`w-20 ${inputClass}`}
-            aria-label="Timetable end hour"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={addHourlyColumn}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-app-accent to-app-violet text-white shadow-sm hover:opacity-90"
-          aria-label="Add one hour column"
-          title="Add one hour column"
-        >
-          <Plus className="h-4 w-4" />
-        </button>
-      </div>
-      {timeError ? <p className="text-sm text-amber-700 dark:text-amber-300">{timeError}</p> : null}
-
-      <p className="text-xs text-app-subtle md:hidden">Swipe horizontally to view all time slots.</p>
-
       <div className="min-w-0 overflow-hidden rounded-xl border border-app-border bg-panel shadow-sm" data-page-guide="timetable-grid">
         <div className="h-1 bg-gradient-to-r from-sky-500 via-violet-500 to-rose-500" />
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-app-border px-3 py-2.5">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-app-accent">
+              Start
+              <input
+                key={`start-${startHour}`}
+                defaultValue={hourToKey(startHour)}
+                onBlur={(event) => updateStartHour(event.target.value)}
+                className={`w-20 ${inputClass}`}
+                aria-label="Timetable start hour"
+              />
+            </label>
+            <label className="flex items-center gap-2 text-sm font-medium text-app-teal">
+              End
+              <input
+                key={`end-${endHour}`}
+                defaultValue={hourToKey(endHour)}
+                onBlur={(event) => updateEndHour(event.target.value)}
+                className={`w-20 ${inputClass}`}
+                aria-label="Timetable end hour"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={addHourlyColumn}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-app-accent to-app-violet text-white shadow-sm hover:opacity-90"
+              aria-label="Add one hour column"
+              title="Add one hour column"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+          <TimetablePhotoImport
+            courses={courses}
+            activeSemesterId={activeSemesterId}
+            defaultStartHour={defaultStartHour}
+            defaultEndHour={defaultEndHour}
+            onCoursesCreated={(created) => setCourses((current) => [...current, ...created])}
+            onImportApplied={({ entries: importedEntries, startHour: importedStart, endHour: importedEnd }) => {
+              setStartHour((current) => Math.min(current, importedStart));
+              setEndHour((current) => Math.max(current, importedEnd, requiredEndHourForEntries(importedEntries)));
+              setEntries((current) => ({ ...current, ...importedEntries }));
+              setTimeError(null);
+            }}
+          />
+        </div>
+        {timeError ? (
+          <p className="border-b border-app-border px-3 py-2 text-sm text-amber-700 dark:text-amber-300">{timeError}</p>
+        ) : null}
+        <p className="px-3 py-1.5 text-xs text-app-subtle md:hidden">Swipe horizontally to view all time slots.</p>
         <div className="overflow-x-auto overscroll-x-contain">
           <table
             className="table-fixed border-separate border-spacing-0"

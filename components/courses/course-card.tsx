@@ -79,9 +79,11 @@ export function CourseCard({
             ) : null}
           </div>
         </div>
-        <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${accent.badge}`}>
-          {course.topicCount} topics
-        </span>
+        {course.code ? (
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${accent.badge}`}>
+            {course.code}
+          </span>
+        ) : null}
       </div>
 
       {isEditing ? (
@@ -139,15 +141,12 @@ export function CourseCard({
         </form>
       ) : null}
 
-      <p className="mt-4 text-sm text-app-subtle">
-        Latest status: <span className="font-medium text-app-fg">{course.latestTopicStatus}</span>
-      </p>
       <div className="flex gap-2">
         <Link
           href={`/courses/${course.id}`}
           className="inline-flex rounded-md border border-app-accent/30 bg-app-accent-soft px-3 py-1.5 text-sm font-medium text-app-accent hover:bg-app-accent-light"
         >
-          Open syllabus
+          Open course
         </Link>
         {!isEditing ? (
           <button

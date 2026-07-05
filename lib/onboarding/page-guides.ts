@@ -22,6 +22,12 @@ export const PAGE_GUIDES: Record<PageGuideId, PageGuideStep[]> = {
       placement: "bottom",
     },
     {
+      target: "pulse-upcoming",
+      title: "Coming up",
+      body: "Your to-dos, exams, and alarms from Courses and Timetable land here.",
+      placement: "bottom",
+    },
+    {
       target: "pulse-ai",
       title: "AI study nudge",
       body: "Tap here when you want a tailored next step to study.",
@@ -46,13 +52,7 @@ export const PAGE_GUIDES: Record<PageGuideId, PageGuideStep[]> = {
     {
       target: "course-planner",
       title: "Notes & plan",
-      body: "Write course notes and to-dos here. Set a due time and turn on Alarm for a browser reminder.",
-      placement: "bottom",
-    },
-    {
-      target: "course-topics",
-      title: "Course topics",
-      body: "Add syllabus topics here and track your progress through the term.",
+      body: "Write course notes and save them as cards. Add to-dos with optional alarms for reminders.",
       placement: "bottom",
     },
   ],

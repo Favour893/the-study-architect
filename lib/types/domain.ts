@@ -73,7 +73,16 @@ export type CourseTodo = {
   alarmEnabled: boolean;
 };
 
+export type CourseNote = {
+  id: string;
+  /** Optional display title; when empty, derived from the first sentence of body. */
+  title: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type CoursePlan = {
-  notes: string;
+  notes: CourseNote[];
   todos: CourseTodo[];
 };

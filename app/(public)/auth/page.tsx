@@ -50,7 +50,7 @@ export default function AuthPage() {
           <ul className="space-y-3 text-sm text-blue-50">
             <li className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-sky-200" />
-              Syllabus and topic tracking
+              Notes, to-dos, and course planning
             </li>
             <li className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-amber-300" />

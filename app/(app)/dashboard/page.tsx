@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { AlarmClock, Bell, BookOpen, CalendarClock, CheckSquare, ClipboardList } from "lucide-react";
 import { buildCombinedDocumentContextForAi, listCourseDocuments } from "@/lib/data/course-documents";
 import { listCourses } from "@/lib/data/courses";
+import { loadPulseFeed } from "@/lib/data/pulse-feed";
 import { getUserProfile } from "@/lib/data/semesters";
 import { listTopics } from "@/lib/data/topics";
 import { getClientAuth } from "@/lib/firebase/auth";
+import { pickPulseHeadline, upcomingWithinDays, type PulseFeedItem } from "@/lib/pulse/upcoming-items";
 import { rankMissionTopics, resolveTopicStage } from "@/lib/pulse/study-mission";
 import { TIMETABLE_LEGACY_STORAGE_KEY, timetableStorageKeyForUserSemester } from "@/lib/timetable-storage";
 import { useAuth } from "@/providers/auth-provider";
@@ -38,11 +42,6 @@ type CurrentClass = {
   location: string;
   startHour: number;
   endHour: number;
-};
-
-type PriorityTopic = {
-  courseName: string;
-  topicTitle: string;
 };
 
 type MissionTopic = {
@@ -143,7 +142,6 @@ export default function DashboardPage() {
   const { activeSemesterId, semesters, isLoading: semesterLoading } = useSemester();
   const [currentClass, setCurrentClass] = useState<CurrentClass | null>(null);
   const [nextClass, setNextClass] = useState<CurrentClass | null>(null);
-  const [priorityTopic, setPriorityTopic] = useState<PriorityTopic | null>(null);
   const [studyMission, setStudyMission] = useState<string | null>(null);
   const [studyReasoning, setStudyReasoning] = useState<string | null>(null);
   const [missionTopics, setMissionTopics] = useState<MissionTopic[]>([]);
@@ -151,6 +149,8 @@ export default function DashboardPage() {
   const [aiError, setAiError] = useState<string | null>(null);
   const [reasoningOpen, setReasoningOpen] = useState(false);
   const reasoningWrapRef = useRef<HTMLDivElement | null>(null);
+  const [pulseFeed, setPulseFeed] = useState<PulseFeedItem[]>([]);
+  const [pulseFeedLoading, setPulseFeedLoading] = useState(true);
 
   useEffect(() => {
     function refreshCurrentClass() {
@@ -172,56 +172,38 @@ export default function DashboardPage() {
   }, [user?.uid, activeSemesterId]);
 
   useEffect(() => {
-    let isMounted = true;
+    let cancelled = false;
 
-    async function loadPriorityTopic() {
-      if (!user) {
-        setPriorityTopic(null);
+    async function loadFeed() {
+      if (!user || !activeSemesterId || semesterLoading) {
+        if (!cancelled) {
+          setPulseFeed([]);
+          setPulseFeedLoading(false);
+        }
         return;
       }
-
-      if (semesterLoading) {
-        return;
-      }
-
-      const semesterId = activeSemesterId;
-      if (!semesterId) {
-        setPriorityTopic(null);
-        return;
-      }
-
-      const courses = await listCourses(user.uid, semesterId);
-      let best: { score: number; value: PriorityTopic } | null = null;
-
-      for (const course of courses) {
-        const topics = await listTopics(user.uid, semesterId, course.id);
-        for (const topic of topics) {
-          const stage = topic.learningStage === "mastered" ? "mastered" : topic.taughtInClass ? "taught" : "pending";
-          if (stage !== "taught") {
-            continue;
-          }
-          const score = (topic.priorityScore ?? 0) + (course.latestTopicStatus === "taught" ? 200 : 0);
-          if (!best || score > best.score) {
-            best = {
-              score,
-              value: {
-                courseName: course.title,
-                topicTitle: topic.title,
-              },
-            };
-          }
+      setPulseFeedLoading(true);
+      try {
+        const items = await loadPulseFeed(user.uid, activeSemesterId);
+        if (!cancelled) {
+          setPulseFeed(items);
+        }
+      } catch {
+        if (!cancelled) {
+          setPulseFeed([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setPulseFeedLoading(false);
         }
       }
-
-      if (!isMounted) {
-        return;
-      }
-      setPriorityTopic(best?.value ?? null);
     }
 
-    void loadPriorityTopic();
+    void loadFeed();
+    const interval = window.setInterval(() => void loadFeed(), 60_000);
     return () => {
-      isMounted = false;
+      cancelled = true;
+      window.clearInterval(interval);
     };
   }, [user, activeSemesterId, semesterLoading]);
 
@@ -256,6 +238,13 @@ export default function DashboardPage() {
     return `${nextClass.courseName} at ${formatHour(nextClass.startHour)} (GMT)`;
   }, [nextClass]);
 
+  const pulseHeadline = useMemo(() => pickPulseHeadline(pulseFeed, new Date()), [pulseFeed]);
+
+  const upcomingItems = useMemo(
+    () => upcomingWithinDays(pulseFeed, new Date(), 21),
+    [pulseFeed],
+  );
+
   const pulseTitle = useMemo(() => {
     if (currentClass) {
       return `Attend ${currentClass.courseName}`;
@@ -263,11 +252,17 @@ export default function DashboardPage() {
     if (nextClass) {
       return `Prepare for ${nextClass.courseName}`;
     }
-    if (priorityTopic) {
-      return `Deep work: ${priorityTopic.courseName}`;
+    if (pulseHeadline) {
+      if (pulseHeadline.overdue) {
+        return pulseHeadline.kind === "exam" ? `Overdue exam prep: ${pulseHeadline.title}` : `Overdue: ${pulseHeadline.title}`;
+      }
+      if (pulseHeadline.kind === "exam") {
+        return `Exam coming up: ${pulseHeadline.title}`;
+      }
+      return pulseHeadline.title;
     }
     return "Plan your next focused study block";
-  }, [currentClass, nextClass, priorityTopic]);
+  }, [currentClass, nextClass, pulseHeadline]);
 
   const pulseBody = useMemo(() => {
     if (currentClass) {
@@ -278,11 +273,15 @@ export default function DashboardPage() {
     if (nextClass) {
       return `Your next class starts at ${formatHour(nextClass.startHour)}. Review key notes before it begins.`;
     }
-    if (priorityTopic) {
-      return `Most urgent taught topic: ${priorityTopic.topicTitle} (${priorityTopic.courseName}). Start a focused 30-minute study block now.`;
+    if (pulseHeadline) {
+      const alarmNote = pulseHeadline.hasAlarm ? " Alarm is set." : "";
+      if (pulseHeadline.kind === "exam") {
+        return `${pulseHeadline.whenLabel}. ${pulseHeadline.subtitle}.${alarmNote}`;
+      }
+      return `${pulseHeadline.courseName} · ${pulseHeadline.whenLabel}.${alarmNote}`;
     }
-    return "No active or upcoming class detected for today. Use this window for revision.";
-  }, [currentClass, nextClass, priorityTopic]);
+    return "Add to-dos on course pages or exams on your Timetable to see them here.";
+  }, [currentClass, nextClass, pulseHeadline]);
 
   const semesterProgress = useMemo(() => {
     if (semesterLoading || !activeSemesterId) {
@@ -360,7 +359,7 @@ export default function DashboardPage() {
 
       if (taughtTopics.length === 0) {
         setStudyMission(
-          "No taught topics are waiting. Mark a topic as Taught in Class on a course syllabus to get a mission.",
+          "Add to-dos on a course page first — the assistant works best when it knows what you are working toward.",
         );
         setStudyReasoning(null);
         setMissionTopics([]);
@@ -524,6 +523,79 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm" data-page-guide="pulse-upcoming">
+        <div className="h-1 bg-gradient-to-r from-amber-500 via-rose-500 to-violet-500" />
+        <div className="p-5">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="h-5 w-5 text-app-accent" />
+            <h3 className="text-base font-semibold text-app-fg">Coming up</h3>
+          </div>
+          <p className="mt-1 text-sm text-app-subtle">
+            To-dos, exam dates, and alarms from your courses and timetable.
+          </p>
+
+          {pulseFeedLoading ? (
+            <p className="mt-4 text-sm text-app-subtle">Loading your schedule…</p>
+          ) : upcomingItems.length === 0 ? (
+            <p className="mt-4 rounded-xl border border-dashed border-app-border px-4 py-6 text-center text-sm text-app-subtle">
+              No to-dos or exams yet. Add to-dos on a course page or exams on the Timetable.
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-2">
+              {upcomingItems.slice(0, 8).map((item) => (
+                <li key={item.id}>
+                  <Link
+                    href={item.href}
+                    className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 transition hover:bg-app-muted ${
+                      item.overdue
+                        ? "border-rose-300/60 bg-rose-50/50 dark:border-rose-900/50 dark:bg-rose-950/20"
+                        : "border-app-border bg-panel"
+                    }`}
+                  >
+                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-app-accent-soft">
+                      {item.kind === "exam" ? (
+                        <ClipboardList className="h-4 w-4 text-rose-600 dark:text-rose-300" />
+                      ) : (
+                        <CheckSquare className="h-4 w-4 text-app-accent" />
+                      )}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium text-app-fg">{item.title}</span>
+                        {item.hasAlarm ? (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-app-violet-soft px-1.5 py-0.5 text-[10px] font-medium text-app-violet">
+                            <Bell className="h-3 w-3" />
+                            Alarm
+                          </span>
+                        ) : null}
+                        {item.overdue ? (
+                          <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+                            Overdue
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-app-subtle">
+                        {item.kind === "todo" ? item.courseName : item.subtitle}
+                      </span>
+                      <span className="mt-0.5 flex items-center gap-1 text-xs font-medium text-app-accent">
+                        <AlarmClock className="h-3 w-3" />
+                        {item.whenLabel}
+                      </span>
+                    </span>
+                    {item.kind === "todo" ? (
+                      <BookOpen className="mt-1 h-4 w-4 shrink-0 text-app-subtle" />
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          {upcomingItems.length > 8 ? (
+            <p className="mt-3 text-xs text-app-subtle">+ {upcomingItems.length - 8} more in the next 3 weeks</p>
+          ) : null}
+        </div>
+      </section>
+
       <section className="grid gap-4 md:grid-cols-2" data-page-guide="pulse-classes">
         <article className="rounded-2xl border border-app-border border-l-4 border-l-sky-500 bg-panel p-5 shadow-sm">
           <p className="text-sm font-semibold text-sky-600 dark:text-sky-400">Current class</p>
@@ -535,11 +607,6 @@ export default function DashboardPage() {
         <article className="rounded-2xl border border-app-border border-l-4 border-l-emerald-500 bg-panel p-5 shadow-sm">
           <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Next class today</p>
           <p className="mt-1 text-base font-medium text-app-fg">{nextClassLabel}</p>
-          {priorityTopic ? (
-            <p className="mt-1 text-sm text-app-subtle">
-              Priority topic: {priorityTopic.topicTitle} ({priorityTopic.courseName}) - taught
-            </p>
-          ) : null}
         </article>
       </section>
     </div>
