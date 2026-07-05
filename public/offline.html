@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline — The Study Architect</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+        background: #eef3fc;
+        color: #0f172a;
+        padding: 1.5rem;
+      }
+      main {
+        max-width: 24rem;
+        text-align: center;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0 0 0.5rem;
+      }
+      p {
+        margin: 0 0 1rem;
+        color: #475569;
+        line-height: 1.5;
+      }
+      button {
+        border: 0;
+        border-radius: 0.625rem;
+        background: #2563eb;
+        color: #fff;
+        padding: 0.625rem 1rem;
+        font: inherit;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>You are offline</h1>
+      <p>Reconnect to load your latest courses, timetable, and study plan.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

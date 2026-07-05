@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/providers/app-providers";
@@ -16,10 +16,23 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "The Study Architect",
   description: "A minimalist academic companion for university students.",
+  applicationName: "The Study Architect",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "TSA",
+  },
   icons: {
     icon: "/logo-mark.png",
     apple: "/logo-mark.png",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#2563eb" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a1020" },
+  ],
 };
 
 export default function RootLayout({
