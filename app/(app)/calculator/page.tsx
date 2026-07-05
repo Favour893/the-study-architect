@@ -14,11 +14,15 @@ import {
 } from "@/lib/calculator-storage";
 import {
   formatSemesterMark,
+  countSemestersWithGrades,
+  cumulativeGradedCreditsFromRowSets,
+  cumulativeMarkForMode,
   roundGpaTwoDecimals,
   semesterMarkFromRows,
 } from "@/lib/calculator-math";
 import {
   fetchCalculatorFromFirestore,
+  fetchCalculatorStateResolved,
   saveCalculatorToFirestore,
 } from "@/lib/data/calculator-firestore";
 import { listCourses } from "@/lib/data/courses";
@@ -75,8 +79,9 @@ function applyDefaultCalculatorState() {
 export default function CalculatorPage() {
   const { user } = useAuth();
   const { pushToast } = useToast();
-  const { activeSemesterId, isLoading: semesterLoading } = useSemester();
+  const { activeSemesterId, semesters, isLoading: semesterLoading } = useSemester();
   const [semesterCourses, setSemesterCourses] = useState<Course[]>([]);
+  const [otherSemesterRowSets, setOtherSemesterRowSets] = useState<CalculatorStoredRow[][]>([]);
   const [coursesListReady, setCoursesListReady] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const loadToken = useRef(0);
@@ -101,6 +106,29 @@ export default function CalculatorPage() {
     const mark = semesterMarkFromRows(rows, mode, gradeScale);
     return mark ?? 0;
   }, [rows, mode, gradeScale]);
+
+  const showCumulative = semesters.length > 1;
+
+  const cumulativeResult = useMemo(() => {
+    if (!showCumulative) {
+      return null;
+    }
+    return cumulativeMarkForMode([...otherSemesterRowSets, rows], mode, gradeScale);
+  }, [showCumulative, otherSemesterRowSets, rows, mode, gradeScale]);
+
+  const semestersWithGrades = useMemo(() => {
+    if (!showCumulative) {
+      return 0;
+    }
+    return countSemestersWithGrades([...otherSemesterRowSets, rows]);
+  }, [showCumulative, otherSemesterRowSets, rows]);
+
+  const cumulativeGradedCredits = useMemo(() => {
+    if (!showCumulative || mode !== "CWA") {
+      return 0;
+    }
+    return cumulativeGradedCreditsFromRowSets([...otherSemesterRowSets, rows]);
+  }, [showCumulative, mode, otherSemesterRowSets, rows]);
 
   useEffect(() => {
     if (semesterLoading) {
@@ -244,6 +272,49 @@ export default function CalculatorPage() {
       cancelled = true;
     };
   }, [user, activeSemesterId, semesterLoading]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadOtherSemesterRows() {
+      if (!user || semesterLoading || semesters.length <= 1) {
+        if (!cancelled) {
+          setOtherSemesterRowSets([]);
+        }
+        return;
+      }
+
+      const otherIds = semesters
+        .filter((semester) => semester.id !== activeSemesterId)
+        .map((semester) => semester.id);
+
+      if (otherIds.length === 0) {
+        if (!cancelled) {
+          setOtherSemesterRowSets([]);
+        }
+        return;
+      }
+
+      try {
+        const states = await Promise.all(
+          otherIds.map((semesterId) => fetchCalculatorStateResolved(user.uid, semesterId)),
+        );
+        if (!cancelled) {
+          setOtherSemesterRowSets(states.filter(Boolean).map((state) => state!.rows));
+        }
+      } catch {
+        if (!cancelled) {
+          setOtherSemesterRowSets([]);
+        }
+      }
+    }
+
+    void loadOtherSemesterRows();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, activeSemesterId, semesterLoading, semesters]);
 
   useEffect(() => {
     let cancelled = false;
@@ -550,23 +621,54 @@ export default function CalculatorPage() {
 
         <div className="overflow-hidden rounded-xl border border-app-border bg-gradient-to-br from-app-accent-soft via-app-violet-soft to-app-teal-soft shadow-sm" data-page-guide="calculator-summary">
           <div className="h-1 bg-gradient-to-r from-app-accent to-app-teal" />
-          <div className="flex items-center gap-3 px-4 py-3">
-            <TrendingUp className="h-8 w-8 text-app-accent" />
-            <div>
-              <p className="text-sm font-medium text-app-accent">Current semester {mode}</p>
-              <p className="text-2xl font-bold text-app-fg">
-                {gradedCreditsThisSemester <= 0
-                  ? "—"
-                  : mode === "GPA"
-                    ? roundGpaTwoDecimals(currentResult).toFixed(2)
-                    : currentResult.toFixed(2)}
-              </p>
-              {gradedCreditsThisSemester <= 0 ? (
-                <p className="mt-0.5 text-xs text-app-subtle">
-                  Grades start unset — choose a letter when you have a mark.
+          <div className="grid gap-4 px-4 py-3 sm:grid-cols-2">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-8 w-8 shrink-0 text-app-accent" />
+              <div>
+                <p className="text-sm font-medium text-app-accent">Current semester {mode}</p>
+                <p className="text-2xl font-bold text-app-fg">
+                  {gradedCreditsThisSemester <= 0
+                    ? "—"
+                    : mode === "GPA"
+                      ? roundGpaTwoDecimals(currentResult).toFixed(2)
+                      : currentResult.toFixed(2)}
                 </p>
-              ) : null}
+                {gradedCreditsThisSemester <= 0 ? (
+                  <p className="mt-0.5 text-xs text-app-subtle">
+                    Grades start unset — choose a letter when you have a mark.
+                  </p>
+                ) : null}
+              </div>
             </div>
+
+            {showCumulative ? (
+              <div className="flex items-center gap-3 border-t border-app-border/60 pt-4 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+                <Sigma className="h-8 w-8 shrink-0 text-app-violet" />
+                <div>
+                  <p className="text-sm font-medium text-app-violet">
+                    {mode === "GPA" ? "CGPA" : "Cumulative CWA"}
+                  </p>
+                  <p className="text-2xl font-bold text-app-fg">
+                    {cumulativeResult === null
+                      ? "—"
+                      : mode === "GPA"
+                        ? roundGpaTwoDecimals(cumulativeResult).toFixed(2)
+                        : cumulativeResult.toFixed(2)}
+                  </p>
+                  {semestersWithGrades > 0 ? (
+                    <p className="mt-0.5 text-xs text-app-subtle">
+                      {mode === "GPA"
+                        ? `Average of ${semestersWithGrades} semester${semestersWithGrades === 1 ? "" : "s"} with grades`
+                        : `Weighted marks ÷ ${cumulativeGradedCredits} total credit${cumulativeGradedCredits === 1 ? "" : "s"}`}
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 text-xs text-app-subtle">
+                      Set letter grades in each semester to see your cumulative average.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
         </div>

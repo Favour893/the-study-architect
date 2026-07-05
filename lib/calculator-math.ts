@@ -150,6 +150,92 @@ export function cumulativeMarkFromSavedStates(
   return weightedSum / gradedCredits;
 }
 
+/** Credit-weighted cumulative mark from course rows across multiple semesters. */
+export function cumulativeMarkFromRowSets(
+  rowSets: CalculatorStoredRow[][],
+  displayMode: CalculatorStoredMode,
+  gradeScale: CalculatorStoredScale,
+): number | null {
+  let weightedSum = 0;
+  let gradedCredits = 0;
+
+  for (const rows of rowSets) {
+    const parts = weightedMarkPartsFromRows(rows, displayMode, gradeScale);
+    if (!parts) {
+      continue;
+    }
+    weightedSum += parts.weightedSum;
+    gradedCredits += parts.gradedCredits;
+  }
+
+  if (gradedCredits <= 0) {
+    return null;
+  }
+  return weightedSum / gradedCredits;
+}
+
+/** CGPA: arithmetic mean of each semester's GPA. */
+export function cumulativeCgpaFromRowSets(
+  rowSets: CalculatorStoredRow[][],
+  gradeScale: CalculatorStoredScale,
+): number | null {
+  const semesterMarks = rowSets
+    .map((rows) => semesterMarkFromRows(rows, "GPA", gradeScale))
+    .filter((mark): mark is number => mark !== null);
+
+  if (semesterMarks.length === 0) {
+    return null;
+  }
+
+  return semesterMarks.reduce((sum, mark) => sum + mark, 0) / semesterMarks.length;
+}
+
+/** @deprecated Use cumulativeCgpaFromRowSets for GPA cumulative marks. */
+export function cumulativeMarkAsSemesterAverage(
+  rowSets: CalculatorStoredRow[][],
+  displayMode: CalculatorStoredMode,
+  gradeScale: CalculatorStoredScale,
+): number | null {
+  if (displayMode !== "GPA") {
+    return null;
+  }
+  return cumulativeCgpaFromRowSets(rowSets, gradeScale);
+}
+
+/**
+ * Cumulative CWA (KNUST-style): Σ(mark × credit hours) ÷ Σ(credit hours)
+ * across all courses in all semesters — not an average of semester CWAs.
+ */
+export function cumulativeCwaFromRowSets(rowSets: CalculatorStoredRow[][]): number | null {
+  return cumulativeMarkFromRowSets(rowSets, "CWA", "5.0");
+}
+
+export function cumulativeMarkForMode(
+  rowSets: CalculatorStoredRow[][],
+  mode: CalculatorStoredMode,
+  gradeScale: CalculatorStoredScale,
+): number | null {
+  if (mode === "GPA") {
+    return cumulativeCgpaFromRowSets(rowSets, gradeScale);
+  }
+  return cumulativeCwaFromRowSets(rowSets);
+}
+
+export function countSemestersWithGrades(rowSets: CalculatorStoredRow[][]): number {
+  return rowSets.filter((rows) => rows.some((row) => isSetLetterGrade(row.grade))).length;
+}
+
+export function cumulativeGradedCreditsFromRowSets(rowSets: CalculatorStoredRow[][]): number {
+  let total = 0;
+  for (const rows of rowSets) {
+    const parts = weightedMarkPartsFromRows(rows, "CWA", "5.0");
+    if (parts) {
+      total += parts.gradedCredits;
+    }
+  }
+  return total;
+}
+
 export function formatSemesterMark(mark: number, mode: CalculatorStoredMode): number {
   return mode === "GPA" ? roundGpaTwoDecimals(mark) : Number(mark.toFixed(2));
 }
