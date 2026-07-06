@@ -7,7 +7,7 @@ import { verifyFirebaseIdToken } from "@/lib/server/verify-firebase-id-token";
 export const runtime = "nodejs";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic"]);
 
 type ImportExamBody = {
   idToken?: string;

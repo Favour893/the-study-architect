@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Camera, ChevronDown, ImagePlus, Loader2, ScanLine } from "lucide-react";
+import { useState } from "react";
 import { createCourse } from "@/lib/data/courses";
+import { readImageAsBase64 } from "@/lib/photos/read-image-base64";
 import {
   attachCourseIdsToEntries,
   buildTimetableImportPlan,
@@ -12,10 +12,9 @@ import type { Course } from "@/lib/types/domain";
 import type { TimetableState } from "@/lib/timetable-storage";
 import { getClientAuth } from "@/lib/firebase/auth";
 import { FORM_PRIMARY_BUTTON_CLASS, FORM_SECONDARY_BUTTON_CLASS } from "@/lib/ui/form-styles";
+import { PhotoImportDropdown } from "@/components/timetable/photo-import-dropdown";
 import { useAuth } from "@/providers/auth-provider";
 import { useToast } from "@/providers/toast-provider";
-
-const MAX_BYTES = 5 * 1024 * 1024;
 
 type TimetablePhotoImportProps = {
   courses: Course[];
@@ -30,23 +29,6 @@ type TimetablePhotoImportProps = {
   }) => void;
 };
 
-async function readImageAsBase64(file: File): Promise<{ base64: string; mimeType: string }> {
-  if (file.size > MAX_BYTES) {
-    throw new Error("Photo must be under 5 MB.");
-  }
-  const mimeType = file.type || "image/jpeg";
-  if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(mimeType)) {
-    throw new Error("Use a JPEG, PNG, or WebP photo.");
-  }
-  const buffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i] ?? 0);
-  }
-  return { base64: btoa(binary), mimeType };
-}
-
 export function TimetablePhotoImport({
   courses,
   activeSemesterId,
@@ -57,32 +39,13 @@ export function TimetablePhotoImport({
 }: TimetablePhotoImportProps) {
   const { user } = useAuth();
   const { pushToast } = useToast();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [preview, setPreview] = useState<TimetableImportPayload | null>(null);
   const [isApplying, setIsApplying] = useState(false);
 
-  useEffect(() => {
-    function handlePointer(event: MouseEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    if (menuOpen) {
-      document.addEventListener("mousedown", handlePointer);
-    }
-    return () => document.removeEventListener("mousedown", handlePointer);
-  }, [menuOpen]);
-
-  async function handleFile(file: File | undefined) {
-    setMenuOpen(false);
-    if (!file || !user || !activeSemesterId) {
-      if (!user || !activeSemesterId) {
-        pushToast("Sign in and select a semester first.", "error");
-      }
+  async function handleFile(file: File) {
+    if (!user || !activeSemesterId) {
+      pushToast("Sign in and select a semester first.", "error");
       return;
     }
 
@@ -114,12 +77,6 @@ export function TimetablePhotoImport({
       pushToast(error instanceof Error ? error.message : "Could not read that photo.", "error");
     } finally {
       setIsScanning(false);
-      if (fileRef.current) {
-        fileRef.current.value = "";
-      }
-      if (cameraRef.current) {
-        cameraRef.current.value = "";
-      }
     }
   }
 
@@ -190,62 +147,12 @@ export function TimetablePhotoImport({
 
   return (
     <>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        className="hidden"
-        onChange={(event) => void handleFile(event.target.files?.[0])}
+      <PhotoImportDropdown
+        disabled={!user || !activeSemesterId}
+        isLoading={isScanning}
+        buttonLabel="Import timetable photo"
+        onFileSelected={(file) => void handleFile(file)}
       />
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        capture="environment"
-        className="hidden"
-        onChange={(event) => void handleFile(event.target.files?.[0])}
-      />
-      <div className="relative shrink-0" ref={menuRef}>
-        <button
-          type="button"
-          disabled={isScanning || !user || !activeSemesterId}
-          onClick={() => setMenuOpen((open) => !open)}
-          className={`inline-flex items-center gap-1.5 ${FORM_PRIMARY_BUTTON_CLASS}`}
-        >
-          {isScanning ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ScanLine className="h-4 w-4" />
-          )}
-          Import timetable photo
-          <ChevronDown className="h-4 w-4 opacity-80" />
-        </button>
-        {menuOpen ? (
-          <div
-            className="absolute right-0 top-full z-20 mt-1.5 min-w-[11rem] overflow-hidden rounded-xl border border-app-border bg-panel py-1 shadow-lg"
-            role="menu"
-          >
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-app-fg hover:bg-app-muted"
-                onClick={() => cameraRef.current?.click()}
-              >
-                <Camera className="h-4 w-4 text-app-accent" />
-                Take photo
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-app-fg hover:bg-app-muted"
-                onClick={() => fileRef.current?.click()}
-              >
-                <ImagePlus className="h-4 w-4 text-app-violet" />
-                Upload photo
-              </button>
-            </div>
-          ) : null}
-      </div>
 
       {preview && previewPlan ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">

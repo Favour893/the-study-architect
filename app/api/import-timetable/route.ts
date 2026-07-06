@@ -7,7 +7,7 @@ import { parseTimetableImportPayload } from "@/lib/timetable-import/parse-import
 export const runtime = "nodejs";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic"]);
 
 type ImportTimetableBody = {
   idToken?: string;

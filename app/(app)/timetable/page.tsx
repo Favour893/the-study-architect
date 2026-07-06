@@ -687,7 +687,7 @@ export default function TimetablePage() {
 
   return (
     <div className="space-y-5">
-      <div className="min-w-0 overflow-hidden rounded-xl border border-app-border bg-panel shadow-sm" data-page-guide="timetable-grid">
+      <div className="min-w-0 rounded-xl border border-app-border bg-panel shadow-sm" data-page-guide="timetable-grid">
         <div className="h-1 bg-gradient-to-r from-sky-500 via-violet-500 to-rose-500" />
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-app-border px-3 py-2.5">
           <div className="flex flex-wrap items-center gap-3">
