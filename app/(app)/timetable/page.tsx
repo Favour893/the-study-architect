@@ -29,6 +29,7 @@ import {
 } from "@/lib/ui/form-styles";
 import { TimetablePhotoImport } from "@/components/timetable/timetable-photo-import";
 import { ExamTimetableSection } from "@/components/timetable/exam-timetable-section";
+import { PersonalTimetableButton } from "@/components/timetable/personal-timetable-modal";
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const dayAccent: Record<string, string> = {
@@ -720,19 +721,22 @@ export default function TimetablePage() {
               <Plus className="h-4 w-4" />
             </button>
           </div>
-          <TimetablePhotoImport
-            courses={courses}
-            activeSemesterId={activeSemesterId}
-            defaultStartHour={defaultStartHour}
-            defaultEndHour={defaultEndHour}
-            onCoursesCreated={(created) => setCourses((current) => [...current, ...created])}
-            onImportApplied={({ entries: importedEntries, startHour: importedStart, endHour: importedEnd }) => {
-              setStartHour((current) => Math.min(current, importedStart));
-              setEndHour((current) => Math.max(current, importedEnd, requiredEndHourForEntries(importedEntries)));
-              setEntries((current) => ({ ...current, ...importedEntries }));
-              setTimeError(null);
-            }}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <PersonalTimetableButton />
+            <TimetablePhotoImport
+              courses={courses}
+              activeSemesterId={activeSemesterId}
+              defaultStartHour={defaultStartHour}
+              defaultEndHour={defaultEndHour}
+              onCoursesCreated={(created) => setCourses((current) => [...current, ...created])}
+              onImportApplied={({ entries: importedEntries, startHour: importedStart, endHour: importedEnd }) => {
+                setStartHour((current) => Math.min(current, importedStart));
+                setEndHour((current) => Math.max(current, importedEnd, requiredEndHourForEntries(importedEntries)));
+                setEntries((current) => ({ ...current, ...importedEntries }));
+                setTimeError(null);
+              }}
+            />
+          </div>
         </div>
         {timeError ? (
           <p className="border-b border-app-border px-3 py-2 text-sm text-amber-700 dark:text-amber-300">{timeError}</p>
