@@ -49,7 +49,7 @@ function formatDueLabel(iso: string | null) {
   });
 }
 
-export function CoursePlanner({ uid, semesterId, courseId, courseTitle }: CoursePlannerProps) {
+export function CoursePlanner({ uid, semesterId, courseId }: CoursePlannerProps) {
   const { pushToast } = useToast();
   const [savedNotes, setSavedNotes] = useState<CourseNote[]>([]);
   const [todos, setTodos] = useState<CourseTodo[]>([]);

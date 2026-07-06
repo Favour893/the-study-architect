@@ -69,10 +69,15 @@ const slots = buildSlots(PERSONAL_TIMETABLE_START_HOUR, PERSONAL_TIMETABLE_END_H
 const timetableGridWidth = `calc(7rem + ${slots.length} * 4rem)`;
 const maxBlockDurationHours = PERSONAL_TIMETABLE_DAYS.length * slots.length;
 
+function readStoredEntries(uid: string): TimetableState {
+  const raw = window.localStorage.getItem(personalTimetableStorageKey(uid));
+  const parsed = raw ? parsePersonalTimetableStorage(raw) : null;
+  return parsed?.entries ?? {};
+}
+
 export function PersonalTimetableButton() {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [hydrated, setHydrated] = useState(false);
   const [entries, setEntries] = useState<TimetableState>({});
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [draggingKey, setDraggingKey] = useState<string | null>(null);
@@ -85,29 +90,12 @@ export function PersonalTimetableButton() {
   });
 
   useEffect(() => {
-    if (!user) {
-      setEntries({});
-      return;
-    }
-    const raw = window.localStorage.getItem(personalTimetableStorageKey(user.uid));
-    const parsed = raw ? parsePersonalTimetableStorage(raw) : null;
-    setEntries(parsed?.entries ?? {});
-  }, [user]);
-
-  useEffect(() => {
     if (!isOpen || !user) {
-      return;
-    }
-    setHydrated(true);
-  }, [isOpen, user]);
-
-  useEffect(() => {
-    if (!isOpen || !hydrated || !user) {
       return;
     }
     const key = personalTimetableStorageKey(user.uid);
     window.localStorage.setItem(key, serializePersonalTimetableStorage(entries));
-  }, [entries, hydrated, isOpen, user]);
+  }, [entries, isOpen, user]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -126,7 +114,15 @@ export function PersonalTimetableButton() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, editingKey]);
 
-  const entryCount = useMemo(() => Object.keys(entries).length, [entries]);
+  const entryCount = useMemo(() => {
+    if (!user) {
+      return 0;
+    }
+    if (isOpen) {
+      return Object.keys(entries).length;
+    }
+    return Object.keys(readStoredEntries(user.uid)).length;
+  }, [user, isOpen, entries]);
 
   function openEditor(day: string, slotKey: string) {
     const slotIndex = slotKeyToIndex(slotKey);
@@ -350,7 +346,9 @@ export function PersonalTimetableButton() {
   }
 
   function handleOpen() {
-    setHydrated(false);
+    if (user) {
+      setEntries(readStoredEntries(user.uid));
+    }
     setEditingKey(null);
     setIsOpen(true);
   }
@@ -358,7 +356,6 @@ export function PersonalTimetableButton() {
   function handleClose() {
     setIsOpen(false);
     setEditingKey(null);
-    setHydrated(false);
   }
 
   return (
@@ -415,10 +412,7 @@ export function PersonalTimetableButton() {
             </p>
 
             <div className="min-h-0 flex-1 overflow-auto overscroll-contain px-2 pb-3 sm:px-4">
-              {!hydrated ? (
-                <div className="flex h-40 items-center justify-center text-sm text-app-subtle">Loading…</div>
-              ) : (
-                <table
+              <table
                   className="table-fixed border-separate border-spacing-0"
                   style={{ width: timetableGridWidth, minWidth: timetableGridWidth }}
                 >
@@ -456,7 +450,6 @@ export function PersonalTimetableButton() {
                     ))}
                   </tbody>
                 </table>
-              )}
             </div>
           </div>
         </div>

@@ -34,22 +34,24 @@ export function buildTodoAlarms(
   now = new Date(),
 ): ScheduledAlarm[] {
   const nowMs = now.getTime();
-  return todos
-    .filter((todo) => todo.alarmEnabled && !todo.done && todo.dueAt)
-    .map((todo) => {
-      const fireAtMs = new Date(todo.dueAt as string).getTime();
-      if (Number.isNaN(fireAtMs) || !isWithinHorizon(fireAtMs, nowMs)) {
-        return null;
-      }
-      return {
-        id: `todo:${courseId}:${todo.id}`,
-        fireAt: new Date(fireAtMs).toISOString(),
-        title: `${courseTitle} reminder`,
-        body: todo.title,
-        href: `/courses/${courseId}`,
-      } satisfies ScheduledAlarm;
-    })
-    .filter((alarm): alarm is ScheduledAlarm => alarm !== null);
+  const alarms: ScheduledAlarm[] = [];
+  for (const todo of todos) {
+    if (!todo.alarmEnabled || todo.done || !todo.dueAt) {
+      continue;
+    }
+    const fireAtMs = new Date(todo.dueAt).getTime();
+    if (Number.isNaN(fireAtMs) || !isWithinHorizon(fireAtMs, nowMs)) {
+      continue;
+    }
+    alarms.push({
+      id: `todo:${courseId}:${todo.id}`,
+      fireAt: new Date(fireAtMs).toISOString(),
+      title: `${courseTitle} reminder`,
+      body: todo.title,
+      href: `/courses/${courseId}`,
+    });
+  }
+  return alarms;
 }
 
 export function buildExamAlarms(
@@ -59,23 +61,25 @@ export function buildExamAlarms(
   now = new Date(),
 ): ScheduledAlarm[] {
   const nowMs = now.getTime();
-  return rows
-    .filter((row) => row.alarmEnabled && row.alarmAt)
-    .map((row) => {
-      const fireAtMs = new Date(row.alarmAt as string).getTime();
-      if (Number.isNaN(fireAtMs) || !isWithinHorizon(fireAtMs, nowMs)) {
-        return null;
-      }
-      const courseLabel = examCellByKey(row, columns, "course") || "Exam";
-      return {
-        id: `exam:${semesterId}:${row.id}`,
-        fireAt: new Date(fireAtMs).toISOString(),
-        title: "Exam reminder",
-        body: courseLabel,
-        href: "/timetable",
-      } satisfies ScheduledAlarm;
-    })
-    .filter((alarm): alarm is ScheduledAlarm => alarm !== null);
+  const alarms: ScheduledAlarm[] = [];
+  for (const row of rows) {
+    if (!row.alarmEnabled || !row.alarmAt) {
+      continue;
+    }
+    const fireAtMs = new Date(row.alarmAt).getTime();
+    if (Number.isNaN(fireAtMs) || !isWithinHorizon(fireAtMs, nowMs)) {
+      continue;
+    }
+    const courseLabel = examCellByKey(row, columns, "course") || "Exam";
+    alarms.push({
+      id: `exam:${semesterId}:${row.id}`,
+      fireAt: new Date(fireAtMs).toISOString(),
+      title: "Exam reminder",
+      body: courseLabel,
+      href: "/timetable",
+    });
+  }
+  return alarms;
 }
 
 function localDateKey(date: Date) {

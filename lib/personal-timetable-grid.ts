@@ -1,4 +1,5 @@
 import { PERSONAL_TIMETABLE_DAYS, type PersonalTimetableDay } from "./personal-timetable-storage";
+import type { TimetableState } from "./timetable-storage";
 
 export const PERSONAL_SLOTS_PER_DAY = 24;
 
@@ -116,7 +117,7 @@ export function buildBlockSegments(anchorKey: string, durationHours: number): Pe
 export function findAnchorKeyForCell(
   day: PersonalTimetableDay,
   slotIndex: number,
-  entries: Record<string, { durationHours: number }>,
+  entries: TimetableState,
 ): string | null {
   for (const [anchorKey, entry] of Object.entries(entries)) {
     for (const segment of buildBlockSegments(anchorKey, entry.durationHours)) {
@@ -133,17 +134,17 @@ export function findAnchorKeyForCell(
 }
 
 export function removeOverlappingEntries(
-  entries: Record<string, { durationHours: number }>,
+  entries: TimetableState,
   anchorKey: string,
   durationHours: number,
   exceptKey?: string,
-): Record<string, { durationHours: number }> {
+): TimetableState {
   const nextRange = getBlockAbsoluteRange(anchorKey, durationHours);
   if (!nextRange) {
     return entries;
   }
 
-  const cleaned: Record<string, { durationHours: number }> = {};
+  const cleaned: TimetableState = {};
   for (const [existingKey, existingValue] of Object.entries(entries)) {
     if (existingKey === exceptKey) {
       continue;
