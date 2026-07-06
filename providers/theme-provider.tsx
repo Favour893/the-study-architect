@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
 
 export type Theme = "light" | "dark";
 
@@ -13,6 +19,19 @@ type ThemeContextValue = {
 };
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
+
+const themeListeners = new Set<() => void>();
+
+function subscribeTheme(callback: () => void) {
+  themeListeners.add(callback);
+  return () => {
+    themeListeners.delete(callback);
+  };
+}
+
+function notifyThemeListeners() {
+  themeListeners.forEach((listener) => listener());
+}
 
 function readStoredTheme(): Theme {
   if (typeof window === "undefined") {
@@ -42,24 +61,24 @@ type ThemeProviderProps = {
 };
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>("light");
-  const [ready, setReady] = useState(false);
+  const theme = useSyncExternalStore<Theme>(
+    subscribeTheme,
+    readStoredTheme,
+    () => "light",
+  );
 
   useEffect(() => {
-    const initial = readStoredTheme();
-    setThemeState(initial);
-    applyTheme(initial);
-    setReady(true);
-  }, []);
+    applyTheme(theme);
+  }, [theme]);
 
   function setTheme(next: Theme) {
-    setThemeState(next);
-    applyTheme(next);
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
       // ignore
     }
+    applyTheme(next);
+    notifyThemeListeners();
   }
 
   function toggleTheme() {
@@ -74,10 +93,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     }),
     [theme],
   );
-
-  if (!ready) {
-    return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-  }
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

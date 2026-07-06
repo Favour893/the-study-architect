@@ -137,7 +137,7 @@ export function buildExamFeedItems(
     .filter((item) => item.title.length > 0 || item.subtitle.length > 0);
 }
 
-export function mergeAndSortPulseFeed(items: PulseFeedItem[], now: Date): PulseFeedItem[] {
+export function mergeAndSortPulseFeed(items: PulseFeedItem[]): PulseFeedItem[] {
   return [...items].sort((a, b) => {
     if (a.overdue !== b.overdue) {
       return a.overdue ? -1 : 1;
@@ -156,7 +156,7 @@ export function mergeAndSortPulseFeed(items: PulseFeedItem[], now: Date): PulseF
 }
 
 export function pickPulseHeadline(items: PulseFeedItem[], now: Date): PulseFeedItem | null {
-  const sorted = mergeAndSortPulseFeed(items, now);
+  const sorted = mergeAndSortPulseFeed(items);
   const overdue = sorted.find((item) => item.overdue);
   if (overdue) {
     return overdue;
@@ -174,7 +174,7 @@ export function pickPulseHeadline(items: PulseFeedItem[], now: Date): PulseFeedI
 
 export function upcomingWithinDays(items: PulseFeedItem[], now: Date, days: number): PulseFeedItem[] {
   const horizon = now.getTime() + days * 86400000;
-  return mergeAndSortPulseFeed(items, now).filter((item) => {
+  return mergeAndSortPulseFeed(items).filter((item) => {
     if (item.overdue) {
       return true;
     }

@@ -117,7 +117,7 @@ export default function TimetablePage() {
   const [startHour, setStartHour] = useState<number>(defaultStartHour);
   const [endHour, setEndHour] = useState<number>(defaultEndHour);
   const [entries, setEntries] = useState<TimetableState>({});
-  const [cloudSyncState, setCloudSyncState] = useState<CloudSyncState>("local");
+  const [, setCloudSyncState] = useState<CloudSyncState>("local");
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
 
   const [timeError, setTimeError] = useState<string | null>(null);

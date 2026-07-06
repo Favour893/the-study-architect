@@ -35,5 +35,5 @@ export async function loadPulseFeed(uid: string, semesterId: string): Promise<Pu
     ? buildExamFeedItems(examStorage.columns, examStorage.rows, now)
     : [];
 
-  return mergeAndSortPulseFeed([...todoItems, ...examItems], now);
+  return mergeAndSortPulseFeed([...todoItems, ...examItems]);
 }

@@ -1,4 +1,4 @@
-import { parseFlexibleDateToIso, parseTimeToInputValue } from "./exam-timetable-dates";
+import { parseFlexibleDateToIso } from "./exam-timetable-dates";
 
 export const EXAM_TIMETABLE_STORAGE_VERSION = 1 as const;
 

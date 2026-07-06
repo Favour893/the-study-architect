@@ -1,7 +1,7 @@
 "use client";
 
 import { SegmentedControl } from "@/components/ui/segmented-control";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { updateUserProfileProgramme } from "@/lib/data/semesters";
 import { createAccountWithEmail, signInWithEmail, signInWithGoogle } from "@/lib/firebase/auth";
 import { getFirebaseConfigStatus, hasFirebaseConfig } from "@/lib/firebase/client";
@@ -22,17 +22,12 @@ export function AuthForm({ initialError = null }: AuthFormProps) {
   const [password, setPassword] = useState("");
   const [programmeOfStudy, setProgrammeOfStudy] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(initialError);
-
-  useEffect(() => {
-    if (initialError) {
-      setError(initialError);
-    }
-  }, [initialError]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const error = submitError ?? initialError;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
+    setSubmitError(null);
     setIsSubmitting(true);
 
     try {
@@ -46,19 +41,19 @@ export function AuthForm({ initialError = null }: AuthFormProps) {
         await signInWithEmail(email, password);
       }
     } catch (submitError) {
-      setError(humanizeAuthError(submitError));
+      setSubmitError(humanizeAuthError(submitError));
     } finally {
       setIsSubmitting(false);
     }
   }
 
   async function handleGoogle() {
-    setError(null);
+    setSubmitError(null);
     setIsSubmitting(true);
     try {
       await signInWithGoogle();
     } catch (googleError) {
-      setError(humanizeAuthError(googleError));
+      setSubmitError(humanizeAuthError(googleError));
       setIsSubmitting(false);
     }
   }
