@@ -3,6 +3,7 @@
 import { FocusSelectProvider } from "@/providers/focus-select-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { ThemeProvider } from "@/providers/theme-provider";
+import { AlarmEngine } from "@/components/alarms/alarm-engine";
 import { InstallPrompt } from "@/components/pwa/install-prompt";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 
@@ -17,6 +18,7 @@ export function AppProviders({ children }: AppProvidersProps) {
         <FocusSelectProvider>
           {children}
           <ServiceWorkerRegister />
+          <AlarmEngine />
           <InstallPrompt />
         </FocusSelectProvider>
       </AuthProvider>

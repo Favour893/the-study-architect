@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlarmClock, Bell, Check, NotebookPen, Pencil, Plus, Trash2 } from "lucide-react";
 import { formatNoteTimestamp, noteCardTitle } from "@/lib/course-notes";
+import { ensureNotificationPermission } from "@/lib/alarms/notifications";
 import { getCoursePlan, saveCoursePlan } from "@/lib/data/course-plan";
 import type { CourseNote, CourseTodo } from "@/lib/types/domain";
 import {
@@ -46,20 +47,6 @@ function formatDueLabel(iso: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-async function ensureNotificationPermission(): Promise<boolean> {
-  if (typeof window === "undefined" || !("Notification" in window)) {
-    return false;
-  }
-  if (Notification.permission === "granted") {
-    return true;
-  }
-  if (Notification.permission === "denied") {
-    return false;
-  }
-  const result = await Notification.requestPermission();
-  return result === "granted";
 }
 
 export function CoursePlanner({ uid, semesterId, courseId, courseTitle }: CoursePlannerProps) {
@@ -120,48 +107,6 @@ export function CoursePlanner({ uid, semesterId, courseId, courseTitle }: Course
     const id = window.setInterval(() => setNowMs(Date.now()), 60_000);
     return () => window.clearInterval(id);
   }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) {
-      return;
-    }
-    const timers: number[] = [];
-    const now = Date.now();
-    for (const todo of todos) {
-      if (!todo.alarmEnabled || todo.done || !todo.dueAt) {
-        continue;
-      }
-      const due = new Date(todo.dueAt).getTime();
-      if (Number.isNaN(due) || due <= now) {
-        continue;
-      }
-      const delay = due - now;
-      if (delay > 24 * 60 * 60 * 1000) {
-        continue;
-      }
-      const firedKey = `tsa.alarm-fired:${courseId}:${todo.id}:${todo.dueAt}`;
-      if (sessionStorage.getItem(firedKey)) {
-        continue;
-      }
-      timers.push(
-        window.setTimeout(() => {
-          if (Notification.permission !== "granted") {
-            return;
-          }
-          new Notification(`${courseTitle} reminder`, {
-            body: todo.title,
-            tag: firedKey,
-          });
-          sessionStorage.setItem(firedKey, "1");
-        }, delay),
-      );
-    }
-    return () => {
-      for (const timer of timers) {
-        window.clearTimeout(timer);
-      }
-    };
-  }, [todos, courseId, courseTitle]);
 
   function resetNoteDraft() {
     setDraftNoteTitle("");

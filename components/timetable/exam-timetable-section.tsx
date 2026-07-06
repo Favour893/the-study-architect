@@ -34,6 +34,7 @@ import {
   type ExamTimetableRow,
   type ExamTimetableStorage,
 } from "@/lib/exam-timetable-storage";
+import { ensureNotificationPermission } from "@/lib/alarms/notifications";
 import { getClientAuth } from "@/lib/firebase/auth";
 import { hasFirebaseConfig } from "@/lib/firebase/client";
 import type { Course } from "@/lib/types/domain";
@@ -47,7 +48,6 @@ import { useAuth } from "@/providers/auth-provider";
 import { useToast } from "@/providers/toast-provider";
 
 const MAX_BYTES = 5 * 1024 * 1024;
-const ALARM_MAX_MS = 30 * 24 * 60 * 60 * 1000;
 
 type ExamTimetableSectionProps = {
   activeSemesterId: string | null;
@@ -97,19 +97,6 @@ function fromDatetimeLocalValue(value: string): string | null {
     return null;
   }
   return date.toISOString();
-}
-
-async function ensureNotificationPermission(): Promise<boolean> {
-  if (typeof window === "undefined" || !("Notification" in window)) {
-    return false;
-  }
-  if (Notification.permission === "granted") {
-    return true;
-  }
-  if (Notification.permission === "denied") {
-    return false;
-  }
-  return (await Notification.requestPermission()) === "granted";
 }
 
 function cellByKey(row: ExamTimetableRow, columns: ExamTimetableColumn[], key: string) {
@@ -226,45 +213,6 @@ export function ExamTimetableSection({
     }
     return () => document.removeEventListener("mousedown", handlePointer);
   }, [menuOpen]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) {
-      return;
-    }
-    const timers: number[] = [];
-    const now = Date.now();
-    for (const row of rows) {
-      if (!row.alarmEnabled || !row.alarmAt) {
-        continue;
-      }
-      const due = new Date(row.alarmAt).getTime();
-      if (Number.isNaN(due) || due <= now || due - now > ALARM_MAX_MS) {
-        continue;
-      }
-      const firedKey = `tsa.exam-alarm:${activeSemesterId}:${row.id}:${row.alarmAt}`;
-      if (sessionStorage.getItem(firedKey)) {
-        continue;
-      }
-      const courseLabel = cellByKey(row, columns, "course") || "Exam";
-      timers.push(
-        window.setTimeout(() => {
-          if (Notification.permission !== "granted") {
-            return;
-          }
-          new Notification("Exam reminder", {
-            body: courseLabel,
-            tag: firedKey,
-          });
-          sessionStorage.setItem(firedKey, "1");
-        }, due - now),
-      );
-    }
-    return () => {
-      for (const timer of timers) {
-        window.clearTimeout(timer);
-      }
-    };
-  }, [rows, columns, activeSemesterId]);
 
   function updateRow(rowId: string, patch: Partial<ExamTimetableRow>) {
     setRows((current) => current.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
@@ -665,7 +613,7 @@ export function ExamTimetableSection({
         {rows.some((r) => r.alarmEnabled) ? (
           <p className="flex items-center gap-1.5 text-xs text-app-subtle">
             <AlarmClock className="h-3.5 w-3.5 text-app-accent" />
-            Alarms use browser notifications while this tab is open (within 30 days).
+            Alarms ring on your phone as notifications — install the app and allow notifications.
           </p>
         ) : null}
       </div>

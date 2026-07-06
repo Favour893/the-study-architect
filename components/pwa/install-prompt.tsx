@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
+import { ensureNotificationPermission } from "@/lib/alarms/notifications";
 
 const DISMISS_KEY = "tsa-pwa-install-dismissed";
 
@@ -45,6 +46,7 @@ export function InstallPrompt() {
 
     await deferredPrompt.prompt();
     await deferredPrompt.userChoice;
+    await ensureNotificationPermission();
     dismiss();
   }
 
@@ -61,7 +63,7 @@ export function InstallPrompt() {
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-app-fg">Install The Study Architect</p>
             <p className="mt-0.5 text-xs text-app-subtle">
-              Add TSA to your home screen for quick access to your semester.
+              Add TSA to your home screen for class and exam alarms that ring on your phone.
             </p>
             <div className="mt-3 flex gap-2">
               <button

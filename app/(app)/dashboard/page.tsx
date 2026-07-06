@@ -531,7 +531,7 @@ export default function DashboardPage() {
             <h3 className="text-base font-semibold text-app-fg">Coming up</h3>
           </div>
           <p className="mt-1 text-sm text-app-subtle">
-            To-dos, exam dates, and alarms from your courses and timetable.
+            To-dos, exam dates, and class starts — alarms ring on your phone when notifications are allowed.
           </p>
 
           {pulseFeedLoading ? (
