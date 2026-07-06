@@ -1,5 +1,6 @@
 "use client";
 
+import { AlarmEngine } from "@/components/alarms/alarm-engine";
 import { SemesterProvider } from "@/providers/semester-provider";
 import { ToastProvider } from "@/providers/toast-provider";
 
@@ -10,7 +11,10 @@ type AppProvidersProps = {
 export function AppProviders({ children }: AppProvidersProps) {
   return (
     <ToastProvider>
-      <SemesterProvider>{children}</SemesterProvider>
+      <SemesterProvider>
+        <AlarmEngine />
+        {children}
+      </SemesterProvider>
     </ToastProvider>
   );
 }
