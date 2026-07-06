@@ -9,7 +9,15 @@ import {
   parsePersonalTimetableStorage,
   personalTimetableStorageKey,
   serializePersonalTimetableStorage,
+  type PersonalTimetableDay,
 } from "@/lib/personal-timetable-storage";
+import {
+  buildBlockSegments,
+  clampDurationToWeek,
+  findAnchorKeyForCell,
+  removeOverlappingEntries,
+  slotKeyToIndex,
+} from "@/lib/personal-timetable-grid";
 import type { TimetableEntry, TimetableState } from "@/lib/timetable-storage";
 import { pickCourseAccent } from "@/lib/ui/accents";
 import {
@@ -59,6 +67,7 @@ function buildSlots(startHour: number, endHour: number) {
 
 const slots = buildSlots(PERSONAL_TIMETABLE_START_HOUR, PERSONAL_TIMETABLE_END_HOUR);
 const timetableGridWidth = `calc(7rem + ${slots.length} * 4rem)`;
+const maxBlockDurationHours = PERSONAL_TIMETABLE_DAYS.length * slots.length;
 
 export function PersonalTimetableButton() {
   const { user } = useAuth();
@@ -120,14 +129,19 @@ export function PersonalTimetableButton() {
   const entryCount = useMemo(() => Object.keys(entries).length, [entries]);
 
   function openEditor(day: string, slotKey: string) {
-    const key = `${day}-${slotKey}`;
-    setEditingKey(key);
+    const slotIndex = slotKeyToIndex(slotKey);
+    const anchorKey =
+      slotIndex >= 0
+        ? (findAnchorKeyForCell(day as PersonalTimetableDay, slotIndex, entries) ?? `${day}-${slotKey}`)
+        : `${day}-${slotKey}`;
+    const anchorEntry = entries[anchorKey];
+    setEditingKey(anchorKey);
     setDraftEntry({
-      courseId: entries[key]?.courseId ?? "",
-      courseName: entries[key]?.courseName ?? "",
-      lecturerName: entries[key]?.lecturerName ?? "",
-      location: entries[key]?.location ?? "",
-      durationHours: entries[key]?.durationHours ?? 1,
+      courseId: anchorEntry?.courseId ?? "",
+      courseName: anchorEntry?.courseName ?? "",
+      lecturerName: anchorEntry?.lecturerName ?? "",
+      location: anchorEntry?.location ?? "",
+      durationHours: anchorEntry?.durationHours ?? 1,
     });
   }
 
@@ -157,53 +171,20 @@ export function PersonalTimetableButton() {
     closeEditor();
   }
 
-  function getRange(day: string, slotKey: string, durationHours: number) {
-    const start = slots.findIndex((slot) => slot.key === slotKey);
-    const clampedStart = Math.max(0, start);
-    const end = Math.min(slots.length, clampedStart + durationHours);
-    return { day, start: clampedStart, end };
-  }
-
-  function overlaps(
-    left: { day: string; start: number; end: number },
-    right: { day: string; start: number; end: number },
-  ) {
-    if (left.day !== right.day) {
-      return false;
-    }
-    return left.start < right.end && right.start < left.end;
-  }
-
   function saveEditor() {
     if (!editingKey) {
       return;
     }
 
-    const [day, slotKey] = editingKey.split("-");
-    const startIndex = slots.findIndex((slot) => slot.key === slotKey);
-    const maxDuration = Math.max(1, slots.length - startIndex);
-    const safeDuration = Math.min(Math.max(1, draftEntry.durationHours), maxDuration);
     const activityName = draftEntry.courseName.trim();
-
     if (!activityName) {
       return;
     }
 
-    const nextRange = getRange(day, slotKey, safeDuration);
+    const safeDuration = clampDurationToWeek(editingKey, draftEntry.durationHours);
 
     setEntries((current) => {
-      const cleaned: TimetableState = {};
-      for (const [existingKey, existingValue] of Object.entries(current)) {
-        if (existingKey === editingKey) {
-          continue;
-        }
-        const [existingDay, existingSlotKey] = existingKey.split("-");
-        const existingRange = getRange(existingDay, existingSlotKey, existingValue.durationHours);
-        if (!overlaps(nextRange, existingRange)) {
-          cleaned[existingKey] = existingValue;
-        }
-      }
-
+      const cleaned = removeOverlappingEntries(current, editingKey, safeDuration, editingKey);
       return {
         ...cleaned,
         [editingKey]: {
@@ -220,42 +201,28 @@ export function PersonalTimetableButton() {
   }
 
   function moveEntry(fromKey: string, targetDay: string, targetSlotKey: string) {
-    const sourceKey = fromKey.trim();
-    if (!sourceKey) {
+    const anchorKey = fromKey.trim();
+    if (!anchorKey) {
       return;
     }
 
     setEntries((current) => {
-      const draggedEntry = current[sourceKey];
+      const draggedEntry = current[anchorKey];
       if (!draggedEntry) {
         return current;
       }
 
       const nextKey = `${targetDay}-${targetSlotKey}`;
-      if (nextKey === sourceKey) {
+      if (nextKey === anchorKey) {
         return current;
       }
 
-      const startIndex = slots.findIndex((slot) => slot.key === targetSlotKey);
-      if (startIndex < 0) {
+      if (slotKeyToIndex(targetSlotKey) < 0) {
         return current;
       }
 
-      const safeDuration = Math.max(1, draggedEntry.durationHours);
-      const nextRange = getRange(targetDay, targetSlotKey, safeDuration);
-
-      const cleaned: TimetableState = {};
-      for (const [existingKey, existingValue] of Object.entries(current)) {
-        if (existingKey === sourceKey) {
-          continue;
-        }
-
-        const [existingDay, existingSlotKey] = existingKey.split("-");
-        const existingRange = getRange(existingDay, existingSlotKey, existingValue.durationHours);
-        if (!overlaps(nextRange, existingRange)) {
-          cleaned[existingKey] = existingValue;
-        }
-      }
+      const safeDuration = clampDurationToWeek(nextKey, draggedEntry.durationHours);
+      const cleaned = removeOverlappingEntries(current, nextKey, safeDuration, anchorKey);
 
       return {
         ...cleaned,
@@ -268,29 +235,24 @@ export function PersonalTimetableButton() {
   }
 
   function renderDayCells(day: string) {
-    const blocks = Object.entries(entries)
-      .filter(([entryKey]) => entryKey.startsWith(`${day}-`))
-      .map(([entryKey, entry]) => ({
-        entryKey,
-        entry,
-        startIndex: slots.findIndex((slot) => slot.key === entryKey.slice(-5)),
-      }))
-      .filter((block) => block.startIndex >= 0)
-      .sort((a, b) => a.startIndex - b.startIndex);
+    const daySegments = Object.entries(entries).flatMap(([anchorKey, entry]) =>
+      buildBlockSegments(anchorKey, entry.durationHours)
+        .filter((segment) => segment.day === day)
+        .map((segment) => ({ segment, entry })),
+    );
 
-    const byStart = new Map<number, { entryKey: string; entry: TimetableEntry }>();
-    for (const block of blocks) {
-      const maxSpan = Math.max(1, slots.length - block.startIndex);
-      byStart.set(block.startIndex, {
-        entryKey: block.entryKey,
-        entry: { ...block.entry, durationHours: Math.min(block.entry.durationHours, maxSpan) },
-      });
+    const byStart = new Map<
+      number,
+      { segment: (typeof daySegments)[number]["segment"]; entry: TimetableEntry }
+    >();
+    for (const item of daySegments) {
+      byStart.set(item.segment.startIndex, item);
     }
 
     const coveredIndexes = new Set<number>();
-    for (const [startIndex, block] of byStart.entries()) {
-      for (let offset = 1; offset < block.entry.durationHours; offset += 1) {
-        coveredIndexes.add(startIndex + offset);
+    for (const item of daySegments) {
+      for (let offset = 1; offset < item.segment.spanHours; offset += 1) {
+        coveredIndexes.add(item.segment.startIndex + offset);
       }
     }
 
@@ -301,22 +263,23 @@ export function PersonalTimetableButton() {
 
       const block = byStart.get(index);
       if (block) {
-        const isActive = editingKey === `${day}-${slot.key}`;
-        const isDragging = draggingKey === `${day}-${slot.key}`;
-        const accent = pickCourseAccent(block.entry.courseName || block.entryKey);
+        const { segment, entry } = block;
+        const isActive = editingKey === segment.anchorKey;
+        const isDragging = draggingKey === segment.anchorKey;
+        const accent = pickCourseAccent(entry.courseName || segment.anchorKey);
         return (
           <td
             key={`${day}-${slot.key}`}
-            colSpan={block.entry.durationHours}
+            colSpan={segment.spanHours}
             className="h-[48px] min-w-16 border-b border-app-border px-1 py-1 align-top"
           >
             <button
               type="button"
               draggable
               onDragStart={(event) => {
-                event.dataTransfer.setData("text/plain", `${day}-${slot.key}`);
+                event.dataTransfer.setData("text/plain", segment.anchorKey);
                 event.dataTransfer.effectAllowed = "move";
-                setDraggingKey(`${day}-${slot.key}`);
+                setDraggingKey(segment.anchorKey);
               }}
               onDragEnd={() => setDraggingKey(null)}
               onDragOver={(event) => {
@@ -339,10 +302,12 @@ export function PersonalTimetableButton() {
             >
               <div className="flex h-full min-w-0 w-full flex-col justify-center">
                 <p className="min-w-0 truncate text-xs font-semibold leading-tight">
-                  {block.entry.courseName || "Block"}
+                  {entry.courseName || "Block"}
                 </p>
-                {block.entry.location ? (
-                  <p className="min-w-0 truncate text-[10px] leading-tight opacity-75">{block.entry.location}</p>
+                {entry.location ? (
+                  <p className="min-w-0 truncate text-[10px] leading-tight opacity-75">{entry.location}</p>
+                ) : segment.isContinuation ? (
+                  <p className="min-w-0 truncate text-[10px] leading-tight opacity-75">Continued</p>
                 ) : null}
               </div>
             </button>
@@ -446,7 +411,7 @@ export function PersonalTimetableButton() {
             </div>
 
             <p className="shrink-0 px-4 py-1.5 text-xs text-app-subtle">
-              Swipe horizontally to view all hours. Click a cell to add or edit a block.
+              Swipe horizontally to view all hours. Long blocks continue on the next day automatically.
             </p>
 
             <div className="min-h-0 flex-1 overflow-auto overscroll-contain px-2 pb-3 sm:px-4">
@@ -539,7 +504,7 @@ export function PersonalTimetableButton() {
                   <input
                     type="number"
                     min={1}
-                    max={24}
+                    max={maxBlockDurationHours}
                     value={draftEntry.durationHours}
                     onFocus={(event) => event.currentTarget.select()}
                     onClick={(event) => event.currentTarget.select()}
@@ -551,6 +516,9 @@ export function PersonalTimetableButton() {
                     }
                     className={`w-full ${FORM_INPUT_ACCENT}`}
                   />
+                  <p className="text-xs text-app-subtle">
+                    If this runs past midnight, it continues on the following day.
+                  </p>
                 </label>
                 <div className="flex justify-end gap-2">
                   {entries[editingKey] ? (
