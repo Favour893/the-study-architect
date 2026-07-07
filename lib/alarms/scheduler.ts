@@ -1,4 +1,4 @@
-import { hasAlarmFired } from "./fired-store";
+import { hasAlarmFired, listFiredAlarmKeys } from "./fired-store";
 import { deliverAlarm } from "./notifications";
 import type { ScheduledAlarm } from "./types";
 import { ALARM_CHECK_INTERVAL_MS } from "./types";
@@ -56,7 +56,11 @@ export async function syncAlarmsToServiceWorker(alarms: ScheduledAlarm[]) {
   if (!target) {
     return;
   }
-  target.postMessage({ type: "SYNC_ALARMS", alarms });
+  target.postMessage({
+    type: "SYNC_ALARMS",
+    alarms,
+    firedKeys: listFiredAlarmKeys(),
+  });
 }
 
 export function runAlarmSweep(alarms: ScheduledAlarm[]) {

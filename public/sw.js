@@ -1,5 +1,8 @@
-const CACHE_NAME = "tsa-v3";
+const CACHE_NAME = "tsa-v4";
 const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html"];
+const ALARM_DB_NAME = "tsa-alarms-v1";
+const ALARM_STORE = "meta";
+const ALARM_STATE_KEY = "state";
 
 /** @type {ScheduledAlarm[]} */
 let pendingAlarms = [];
@@ -11,6 +14,72 @@ let alarmTimer = null;
 /**
  * @typedef {{ id: string; fireAt: string; title: string; body: string; href?: string }} ScheduledAlarm
  */
+
+function openAlarmDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(ALARM_DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(ALARM_STORE);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * @returns {Promise<{ pendingAlarms: ScheduledAlarm[]; firedAlarmKeys: string[] }>}
+ */
+async function readPersistedAlarmState() {
+  try {
+    const db = await openAlarmDb();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(ALARM_STORE, "readonly");
+      const get = tx.objectStore(ALARM_STORE).get(ALARM_STATE_KEY);
+      get.onsuccess = () => {
+        const value = get.result;
+        if (!value || typeof value !== "object") {
+          resolve({ pendingAlarms: [], firedAlarmKeys: [] });
+          return;
+        }
+        resolve({
+          pendingAlarms: Array.isArray(value.pendingAlarms) ? value.pendingAlarms : [],
+          firedAlarmKeys: Array.isArray(value.firedAlarmKeys) ? value.firedAlarmKeys : [],
+        });
+      };
+      get.onerror = () => reject(get.error);
+    });
+  } catch {
+    return { pendingAlarms: [], firedAlarmKeys: [] };
+  }
+}
+
+async function persistAlarmState() {
+  try {
+    const db = await openAlarmDb();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(ALARM_STORE, "readwrite");
+      tx.objectStore(ALARM_STORE).put(
+        {
+          pendingAlarms,
+          firedAlarmKeys: [...firedAlarmKeys],
+        },
+        ALARM_STATE_KEY,
+      );
+      tx.oncomplete = () => resolve(undefined);
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    // Non-fatal: in-memory scheduling still works until the worker restarts.
+  }
+}
+
+async function hydrateAlarmState() {
+  const saved = await readPersistedAlarmState();
+  pendingAlarms = saved.pendingAlarms;
+  for (const key of saved.firedAlarmKeys) {
+    firedAlarmKeys.add(key);
+  }
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -24,6 +93,7 @@ self.addEventListener("activate", (event) => {
       .keys()
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
+      .then(() => hydrateAlarmState())
       .then(() => {
         scheduleNextAlarm();
       }),
@@ -100,11 +170,15 @@ async function fireAlarm(alarm) {
   await self.registration.showNotification(alarm.title, {
     body: alarm.body,
     tag: key,
+    icon: "/logo-mark.png",
+    badge: "/logo-mark.png",
     silent: false,
     requireInteraction: true,
     vibrate: [400, 120, 400, 120, 400, 120, 400],
     data: { href: alarm.href || "/dashboard" },
   });
+
+  await persistAlarmState();
 
   const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
   for (const client of clients) {
@@ -161,7 +235,16 @@ self.addEventListener("message", (event) => {
 
   if (data.type === "SYNC_ALARMS" && Array.isArray(data.alarms)) {
     pendingAlarms = data.alarms;
-    scheduleNextAlarm();
+    if (Array.isArray(data.firedKeys)) {
+      for (const key of data.firedKeys) {
+        if (typeof key === "string") {
+          firedAlarmKeys.add(key);
+        }
+      }
+    }
+    void persistAlarmState().then(() => {
+      scheduleNextAlarm();
+    });
     return;
   }
 

@@ -17,3 +17,18 @@ export function markAlarmFired(alarmId: string, fireAt: string) {
   }
   window.localStorage.setItem(firedAlarmKey(alarmId, fireAt), "1");
 }
+
+/** Alarm keys in the form `id:fireAt` (without the storage prefix). */
+export function listFiredAlarmKeys(): string[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+  const keys: string[] = [];
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index);
+    if (key?.startsWith(FIRED_PREFIX)) {
+      keys.push(key.slice(FIRED_PREFIX.length));
+    }
+  }
+  return keys;
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { ALARMS_CHANGED_EVENT } from "@/lib/alarms/alarm-events";
 import { buildClassAlarms, buildExamAlarms, buildTodoAlarms, mergeAlarms } from "@/lib/alarms/build-alarms";
 import { playAlarmSound } from "@/lib/alarms/play-alarm-sound";
 import {
@@ -112,6 +113,10 @@ export function AlarmEngine() {
       }
     }
 
+    function onAlarmsChanged() {
+      void refresh();
+    }
+
     function onVisibility() {
       if (document.visibilityState === "visible") {
         runAlarmSweep(alarmsRef.current);
@@ -129,6 +134,7 @@ export function AlarmEngine() {
     }
 
     window.addEventListener("storage", onStorage);
+    window.addEventListener(ALARMS_CHANGED_EVENT, onAlarmsChanged);
     document.addEventListener("visibilitychange", onVisibility);
     navigator.serviceWorker?.addEventListener("message", onServiceWorkerMessage);
 
@@ -137,6 +143,7 @@ export function AlarmEngine() {
       window.clearInterval(intervalId);
       clearTimers();
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener(ALARMS_CHANGED_EVENT, onAlarmsChanged);
       document.removeEventListener("visibilitychange", onVisibility);
       navigator.serviceWorker?.removeEventListener("message", onServiceWorkerMessage);
     };

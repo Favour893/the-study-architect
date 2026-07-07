@@ -1,4 +1,5 @@
 import { parseFlexibleDateToIso } from "./exam-timetable-dates";
+import { notifyAlarmsChanged } from "./alarms/alarm-events";
 
 export const EXAM_TIMETABLE_STORAGE_VERSION = 1 as const;
 
@@ -149,6 +150,7 @@ export function saveExamTimetableLocal(uid: string, semesterId: string, state: E
     return;
   }
   window.localStorage.setItem(examTimetableStorageKey(uid, semesterId), serializeExamTimetableStorage(state));
+  notifyAlarmsChanged();
 }
 
 export function defaultExamTimetableStorage(): ExamTimetableStorage {

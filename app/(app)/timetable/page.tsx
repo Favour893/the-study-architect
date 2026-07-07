@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { createCourse, listCourses } from "@/lib/data/courses";
+import { notifyAlarmsChanged } from "@/lib/alarms/alarm-events";
 import { pickCourseAccent } from "@/lib/ui/accents";
 import { fetchTimetableFromFirestore, saveTimetableToFirestore } from "@/lib/data/timetable";
 import type { Course } from "@/lib/types/domain";
@@ -246,6 +247,7 @@ export default function TimetablePage() {
     const key = timetableStorageKeyForUserSemester(user.uid, activeSemesterId);
     const signature = timetableSignature(startHour, endHour, entries);
     window.localStorage.setItem(key, serializeTimetableStorage({ startHour, endHour, entries }));
+    notifyAlarmsChanged();
 
     if (skipNextCloudSaveRef.current) {
       skipNextCloudSaveRef.current = false;

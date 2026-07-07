@@ -19,6 +19,15 @@ export function canUseNotifications() {
   return typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted";
 }
 
+export type NotificationPermissionState = "unsupported" | "granted" | "denied" | "default";
+
+export function getNotificationPermissionState(): NotificationPermissionState {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return "unsupported";
+  }
+  return Notification.permission;
+}
+
 async function showViaServiceWorker(alarm: ScheduledAlarm): Promise<boolean> {
   if (!("serviceWorker" in navigator)) {
     return false;
@@ -44,10 +53,38 @@ export async function deliverAlarm(alarm: ScheduledAlarm) {
     new Notification(alarm.title, {
       body: alarm.body,
       tag: `${alarm.id}:${alarm.fireAt}`,
+      icon: "/logo-mark.png",
       silent: false,
       requireInteraction: true,
     });
   }
 
   markAlarmFired(alarm.id, alarm.fireAt);
+}
+
+export async function sendTestNotification(): Promise<boolean> {
+  const allowed = await ensureNotificationPermission();
+  if (!allowed) {
+    return false;
+  }
+
+  const testAlarm: ScheduledAlarm = {
+    id: "test",
+    fireAt: new Date().toISOString(),
+    title: "TSA alarms are on",
+    body: "You will get reminders for to-dos, exams, and classes on this device.",
+    href: "/dashboard",
+  };
+
+  const usedWorker = await showViaServiceWorker(testAlarm);
+  if (!usedWorker) {
+    new Notification(testAlarm.title, {
+      body: testAlarm.body,
+      tag: "tsa:test-notification",
+      icon: "/logo-mark.png",
+      silent: false,
+    });
+  }
+
+  return true;
 }

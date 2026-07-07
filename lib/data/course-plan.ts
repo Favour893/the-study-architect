@@ -1,4 +1,5 @@
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { notifyAlarmsChanged } from "@/lib/alarms/alarm-events";
 import { getDb } from "../firebase/db";
 import type { CourseNote, CoursePlan, CourseTodo } from "../types/domain";
 
@@ -115,4 +116,5 @@ export async function saveCoursePlan(
     },
     { merge: true },
   );
+  notifyAlarmsChanged();
 }
