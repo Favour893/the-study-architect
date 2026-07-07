@@ -2,6 +2,7 @@
 
 import { BookOpen, CalendarDays, Clock3, Gauge, Shield, Sigma } from "lucide-react";
 import { useSemester } from "@/providers/semester-provider";
+import { NotificationHeaderControl } from "@/components/alarms/notification-header-control";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { SidebarNav, type NavItem } from "@/components/layout/sidebar-nav";
 import { UserProfileMenu } from "@/components/layout/user-profile-menu";
@@ -11,8 +12,8 @@ type AppShellProps = {
 };
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Pulse", icon: Gauge },
   { href: "/admin", label: "Admin", icon: Shield },
+  { href: "/dashboard", label: "Pulse", icon: Gauge },
   { href: "/courses", label: "Courses", icon: BookOpen },
   { href: "/timetable", label: "Timetable", icon: Clock3 },
   { href: "/calculator", label: "Grade Calculator", icon: Sigma },
@@ -54,6 +55,7 @@ export function AppShell({ children }: AppShellProps) {
                   </select>
                 </label>
               ) : null}
+              <NotificationHeaderControl />
               <UserProfileMenu />
             </div>
           </header>

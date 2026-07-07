@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AlarmClock, Bell, BookOpen, CalendarClock, CheckSquare, ClipboardList } from "lucide-react";
-import { NotificationPermissionBanner } from "@/components/alarms/notification-permission-banner";
 import { buildCombinedDocumentContextForAi, listCourseDocuments } from "@/lib/data/course-documents";
 import { listCourses } from "@/lib/data/courses";
 import { loadPulseFeed } from "@/lib/data/pulse-feed";
@@ -244,11 +243,6 @@ export default function DashboardPage() {
   const upcomingItems = useMemo(
     () => upcomingWithinDays(pulseFeed, new Date(), 21),
     [pulseFeed],
-  );
-
-  const hasScheduledAlarms = useMemo(
-    () => upcomingItems.some((item) => item.hasAlarm),
-    [upcomingItems],
   );
 
   const pulseTitle = useMemo(() => {
@@ -532,7 +526,6 @@ export default function DashboardPage() {
       <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm" data-page-guide="pulse-upcoming">
         <div className="h-1 bg-gradient-to-r from-amber-500 via-rose-500 to-violet-500" />
         <div className="space-y-4 p-5">
-          <NotificationPermissionBanner hasScheduledAlarms={hasScheduledAlarms} />
           <div className="flex items-center gap-2">
             <CalendarClock className="h-5 w-5 text-app-accent" />
             <h3 className="text-base font-semibold text-app-fg">Coming up</h3>
