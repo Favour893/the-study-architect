@@ -7,8 +7,12 @@ const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@sentry/nextjs", "@sentry/node"],
+  experimental: {
+    webpackMemoryOptimizations: true,
+  },
   webpack: (config, { dev }) => {
     if (dev) {
+      config.cache = false;
       config.resolve.alias = {
         ...config.resolve.alias,
         [path.resolve(projectRoot, "instrumentation.sentry.ts")]: path.resolve(
