@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CalendarDays, Clock3, Gauge, Sigma } from "lucide-react";
+import { BookOpen, CalendarDays, Clock3, Gauge, Shield, Sigma } from "lucide-react";
 import { useSemester } from "@/providers/semester-provider";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { SidebarNav, type NavItem } from "@/components/layout/sidebar-nav";
@@ -12,6 +12,7 @@ type AppShellProps = {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Pulse", icon: Gauge },
+  { href: "/admin", label: "Admin", icon: Shield },
   { href: "/courses", label: "Courses", icon: BookOpen },
   { href: "/timetable", label: "Timetable", icon: Clock3 },
   { href: "/calculator", label: "Grade Calculator", icon: Sigma },

@@ -86,3 +86,24 @@ export type CoursePlan = {
   notes: CourseNote[];
   todos: CourseTodo[];
 };
+
+export type AdminDashboardUserSummary = {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  onboardingComplete: boolean;
+  activeSemesterId: string | null;
+  createdAtIso: string | null;
+  updatedAtIso: string | null;
+};
+
+export type AdminDashboardMetrics = {
+  totalUsers: number;
+  onboardedUsers: number;
+  usersWithActiveSemester: number;
+};
+
+export type AdminUsersDashboardResponse = {
+  metrics: AdminDashboardMetrics;
+  users: AdminDashboardUserSummary[];
+};

@@ -10,6 +10,11 @@ export const NAV_ACCENTS: Record<string, NavAccent> = {
     iconText: "text-sky-300",
     activeRing: "ring-sky-400/40",
   },
+  "/admin": {
+    iconBg: "bg-indigo-500/25",
+    iconText: "text-indigo-300",
+    activeRing: "ring-indigo-400/40",
+  },
   "/courses": {
     iconBg: "bg-emerald-500/25",
     iconText: "text-emerald-300",
