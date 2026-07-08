@@ -10,14 +10,12 @@ import {
 } from "lucide-react";
 import {
   formatExamDateDisplay,
-  formatTimeDisplay,
   toDateInputValue,
 } from "@/lib/exam-timetable-dates";
 import {
   fetchExamTimetableFromFirestore,
   saveExamTimetableToFirestore,
 } from "@/lib/data/exam-timetable";
-import { buildExamRowsFromImport, type ExamImportPayload } from "@/lib/exam-timetable-import/parse-import";
 import {
   createEmptyExamRow,
   createExamColumn,
@@ -30,19 +28,15 @@ import {
   type ExamTimetableStorage,
 } from "@/lib/exam-timetable-storage";
 import { ensureNotificationPermission } from "@/lib/alarms/notifications";
-import { readImageAsBase64 } from "@/lib/photos/read-image-base64";
-import { getClientAuth } from "@/lib/firebase/auth";
 import { hasFirebaseConfig } from "@/lib/firebase/client";
 import type { Course } from "@/lib/types/domain";
 import {
   FORM_INPUT_ACCENT,
-  FORM_PRIMARY_BUTTON_CLASS,
   FORM_SECONDARY_BUTTON_CLASS,
   FORM_SELECT_CLASS,
 } from "@/lib/ui/form-styles";
 import { useAuth } from "@/providers/auth-provider";
 import { useToast } from "@/providers/toast-provider";
-import { PhotoImportDropdown } from "@/components/timetable/photo-import-dropdown";
 
 type ExamTimetableSectionProps = {
   activeSemesterId: string | null;
@@ -77,11 +71,6 @@ function fromDatetimeLocalValue(value: string): string | null {
   return date.toISOString();
 }
 
-function cellByKey(row: ExamTimetableRow, columns: ExamTimetableColumn[], key: string) {
-  const col = columns.find((c) => c.key === key);
-  return col ? row.cells[col.id] ?? "" : "";
-}
-
 export function ExamTimetableSection({
   activeSemesterId,
   semesterLoading,
@@ -93,9 +82,6 @@ export function ExamTimetableSection({
   const [columns, setColumns] = useState<ExamTimetableColumn[]>(defaultExamTimetableStorage().columns);
   const [rows, setRows] = useState<ExamTimetableRow[]>([]);
   const [newColumnLabel, setNewColumnLabel] = useState("");
-  const [isScanning, setIsScanning] = useState(false);
-  const [preview, setPreview] = useState<ExamImportPayload | null>(null);
-  const [isApplying, setIsApplying] = useState(false);
   const loadToken = useRef(0);
 
   const persist = useCallback(
@@ -236,60 +222,6 @@ export function ExamTimetableSection({
     updateRow(row.id, { alarmEnabled: nextEnabled });
   }
 
-  async function handleFile(file: File) {
-    if (!user || !activeSemesterId) {
-      pushToast("Sign in and select a semester first.", "error");
-      return;
-    }
-    setIsScanning(true);
-    try {
-      const { base64, mimeType } = await readImageAsBase64(file);
-      const firebaseUser = getClientAuth().currentUser;
-      if (!firebaseUser) {
-        pushToast("Sign in to import an exam timetable photo.", "error");
-        return;
-      }
-      const idToken = await firebaseUser.getIdToken();
-      const res = await fetch("/api/import-exam-timetable", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken, imageBase64: base64, mimeType }),
-      });
-      const data = (await res.json()) as ExamImportPayload & { error?: string };
-      if (!res.ok) {
-        pushToast(data.error ?? "Could not read that photo.", "error");
-        return;
-      }
-      if (!data.entries?.length) {
-        pushToast("No exam rows found in that photo.", "info");
-        return;
-      }
-      setPreview(data);
-    } catch (error) {
-      pushToast(error instanceof Error ? error.message : "Could not read that photo.", "error");
-    } finally {
-      setIsScanning(false);
-    }
-  }
-
-  function applyPreview() {
-    if (!preview) {
-      return;
-    }
-    setIsApplying(true);
-    try {
-      const built = buildExamRowsFromImport(preview, columns);
-      setColumns(built.columns);
-      setRows((current) => [...current, ...built.rows]);
-      setPreview(null);
-      pushToast(`Added ${built.rows.length} exam row(s) from photo.`, "success");
-    } catch {
-      pushToast("Could not apply the imported exam timetable.", "error");
-    } finally {
-      setIsApplying(false);
-    }
-  }
-
   function renderCellInput(row: ExamTimetableRow, col: ExamTimetableColumn) {
     const value = row.cells[col.id] ?? "";
 
@@ -382,8 +314,6 @@ export function ExamTimetableSection({
     );
   }
 
-  const previewBuilt = preview ? buildExamRowsFromImport(preview, columns) : null;
-
   return (
     <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm" data-page-guide="exam-timetable">
       <div className="h-1 bg-gradient-to-r from-rose-500 via-amber-500 to-orange-500" />
@@ -397,13 +327,6 @@ export function ExamTimetableSection({
               <h3 className="text-base font-semibold text-app-fg">Exam timetable</h3>
             </div>
           </div>
-
-          <PhotoImportDropdown
-            disabled={!user || !activeSemesterId}
-            isLoading={isScanning}
-            buttonLabel="Import exam photo"
-            onFileSelected={(file) => void handleFile(file)}
-          />
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-app-border">
@@ -437,7 +360,7 @@ export function ExamTimetableSection({
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length + 2} className="px-4 py-8 text-center text-sm text-app-subtle">
-                    No exams yet — add a row or import a photo of your exam timetable.
+                    No exams yet — add a row to get started.
                   </td>
                 </tr>
               ) : (
@@ -520,60 +443,6 @@ export function ExamTimetableSection({
           </p>
         ) : null}
       </div>
-
-      {preview && previewBuilt ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[85vh] w-full max-w-lg overflow-hidden rounded-2xl border border-app-border bg-panel shadow-xl">
-            <div className="h-1 bg-gradient-to-r from-rose-500 to-amber-500" />
-            <div className="max-h-[85vh] overflow-y-auto p-5">
-              <h3 className="text-base font-semibold text-app-fg">Review exam import</h3>
-              <p className="mt-1 text-sm text-app-subtle">
-                {previewBuilt.rows.length} exam row(s) detected
-              </p>
-              <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto text-sm">
-                {previewBuilt.rows.map((row) => (
-                  <li key={row.id} className="rounded-lg border border-app-border px-3 py-2 text-app-fg">
-                    <span className="font-medium">{cellByKey(row, previewBuilt.columns, "course") || "Exam"}</span>
-                    {cellByKey(row, previewBuilt.columns, "exam_date") ? (
-                      <span className="block text-xs text-app-subtle">
-                        {formatExamDateDisplay(cellByKey(row, previewBuilt.columns, "exam_date"))}
-                      </span>
-                    ) : null}
-                    {cellByKey(row, previewBuilt.columns, "time") ? (
-                      <span className="block text-xs text-app-subtle">
-                        {formatTimeDisplay(cellByKey(row, previewBuilt.columns, "time"))}
-                      </span>
-                    ) : null}
-                    {cellByKey(row, previewBuilt.columns, "venue") ? (
-                      <span className="block text-xs text-app-subtle">
-                        Venue: {cellByKey(row, previewBuilt.columns, "venue")}
-                      </span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  type="button"
-                  className={FORM_SECONDARY_BUTTON_CLASS}
-                  disabled={isApplying}
-                  onClick={() => setPreview(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className={FORM_PRIMARY_BUTTON_CLASS}
-                  disabled={isApplying}
-                  onClick={applyPreview}
-                >
-                  {isApplying ? "Adding…" : "Add to exam timetable"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }

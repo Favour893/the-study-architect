@@ -28,7 +28,6 @@ import {
   FORM_SECONDARY_BUTTON_CLASS,
   FORM_SELECT_CLASS,
 } from "@/lib/ui/form-styles";
-import { TimetablePhotoImport } from "@/components/timetable/timetable-photo-import";
 import { ExamTimetableSection } from "@/components/timetable/exam-timetable-section";
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const dayAccent: Record<string, string> = {
@@ -720,21 +719,6 @@ export default function TimetablePage() {
             >
               <Plus className="h-4 w-4" />
             </button>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <TimetablePhotoImport
-              courses={courses}
-              activeSemesterId={activeSemesterId}
-              defaultStartHour={defaultStartHour}
-              defaultEndHour={defaultEndHour}
-              onCoursesCreated={(created) => setCourses((current) => [...current, ...created])}
-              onImportApplied={({ entries: importedEntries, startHour: importedStart, endHour: importedEnd }) => {
-                setStartHour((current) => Math.min(current, importedStart));
-                setEndHour((current) => Math.max(current, importedEnd, requiredEndHourForEntries(importedEntries)));
-                setEntries((current) => ({ ...current, ...importedEntries }));
-                setTimeError(null);
-              }}
-            />
           </div>
         </div>
         {timeError ? (

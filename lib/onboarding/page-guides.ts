@@ -87,7 +87,7 @@ export const PAGE_GUIDES: Record<PageGuideId, PageGuideStep[]> = {
     {
       target: "exam-timetable",
       title: "Exam timetable",
-      body: "Add exam dates manually or import a photo. Set alarms so you never miss one.",
+      body: "Add exam dates manually. Set alarms so you never miss one.",
       placement: "top",
     },
   ],
