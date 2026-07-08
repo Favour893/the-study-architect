@@ -17,10 +17,10 @@ type AppShellProps = {
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Pulse", icon: Gauge },
   { href: "/courses", label: "Courses", icon: BookOpen },
-  { href: "/logs", label: "Personal Logs", icon: NotebookPen },
   { href: "/timetable", label: "Timetable", icon: Clock3 },
   { href: "/calculator", label: "Grade Calculator", icon: Sigma },
   { href: "/onboarding", label: "Semester", icon: CalendarDays },
+  { href: "/logs", label: "Personal Logs", icon: NotebookPen },
 ];
 
 export function AppShell({ children }: AppShellProps) {
