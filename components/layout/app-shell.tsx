@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { BookOpen, CalendarDays, Clock3, Gauge, Shield, Sigma } from "lucide-react";
+import { getClientAuth } from "@/lib/firebase/auth";
 import { useSemester } from "@/providers/semester-provider";
+import { useAuth } from "@/providers/auth-provider";
 import { NotificationHeaderControl } from "@/components/alarms/notification-header-control";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { SidebarNav, type NavItem } from "@/components/layout/sidebar-nav";
@@ -12,7 +15,6 @@ type AppShellProps = {
 };
 
 const navItems: NavItem[] = [
-  { href: "/admin", label: "Admin", icon: Shield },
   { href: "/dashboard", label: "Pulse", icon: Gauge },
   { href: "/courses", label: "Courses", icon: BookOpen },
   { href: "/timetable", label: "Timetable", icon: Clock3 },
@@ -21,12 +23,62 @@ const navItems: NavItem[] = [
 ];
 
 export function AppShell({ children }: AppShellProps) {
+  const { user, isLoading: authLoading } = useAuth();
   const { semesters, activeSemesterId, isLoading: semesterLoading, setActiveSemester } = useSemester();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkAdminAccess() {
+      if (authLoading || !user) {
+        if (!cancelled) {
+          setIsAdmin(false);
+        }
+        return;
+      }
+
+      try {
+        const firebaseUser = getClientAuth().currentUser;
+        if (!firebaseUser) {
+          if (!cancelled) {
+            setIsAdmin(false);
+          }
+          return;
+        }
+        const idToken = await firebaseUser.getIdToken();
+        const response = await fetch("/api/admin/access", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken }),
+        });
+        if (!cancelled) {
+          setIsAdmin(response.ok);
+        }
+      } catch {
+        if (!cancelled) {
+          setIsAdmin(false);
+        }
+      }
+    }
+
+    void checkAdminAccess();
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user]);
+
+  const navItemsWithAccess = useMemo(() => {
+    if (!isAdmin) {
+      return navItems;
+    }
+    return [{ href: "/admin", label: "Admin", icon: Shield }, ...navItems];
+  }, [isAdmin]);
 
   return (
     <div className="h-dvh bg-app">
       <div className="flex h-full w-full">
-        <SidebarNav items={navItems} />
+        <SidebarNav items={navItemsWithAccess} />
         <main className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col">
           <header className="relative z-10 flex h-14 min-w-0 shrink-0 items-center justify-between gap-2 border-b border-app-border bg-panel/90 px-3 shadow-sm backdrop-blur md:px-6">
             <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-sky-500 via-violet-500 to-amber-400" />
@@ -64,7 +116,7 @@ export function AppShell({ children }: AppShellProps) {
           </section>
         </main>
       </div>
-      <BottomNav items={navItems} />
+      <BottomNav items={navItemsWithAccess} />
     </div>
   );
 }
