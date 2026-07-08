@@ -280,7 +280,7 @@ export default function DashboardPage() {
       }
       return `${pulseHeadline.courseName} · ${pulseHeadline.whenLabel}.${alarmNote}`;
     }
-    return "Add to-dos on course pages or exams on your Timetable to see them here.";
+    return "Add to-dos on Personal Logs or exams on your Timetable to see them here.";
   }, [currentClass, nextClass, pulseHeadline]);
 
   const semesterProgress = useMemo(() => {
@@ -359,7 +359,7 @@ export default function DashboardPage() {
 
       if (taughtTopics.length === 0) {
         setStudyMission(
-          "Add to-dos on a course page first — the assistant works best when it knows what you are working toward.",
+          "Add a course and mark topics as taught first — the assistant works best when it knows what you are working toward.",
         );
         setStudyReasoning(null);
         setMissionTopics([]);
@@ -538,7 +538,7 @@ export default function DashboardPage() {
             <p className="mt-4 text-sm text-app-subtle">Loading your schedule…</p>
           ) : upcomingItems.length === 0 ? (
             <p className="mt-4 rounded-xl border border-dashed border-app-border px-4 py-6 text-center text-sm text-app-subtle">
-              No to-dos or exams yet. Add to-dos on a course page or exams on the Timetable.
+              No to-dos or exams yet. Add to-dos on Personal Logs or exams on the Timetable.
             </p>
           ) : (
             <ul className="mt-4 space-y-2">

@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { buildClassAlarms, buildExamAlarms, buildTodoAlarms, mergeAlarms } from "../../lib/alarms/build-alarms";
+import {
+  buildClassAlarms,
+  buildExamAlarms,
+  buildPersonalTodoAlarms,
+  mergeAlarms,
+} from "../../lib/alarms/build-alarms";
 import type { ExamTimetableColumn } from "../../lib/exam-timetable-storage";
 
 describe("build-alarms", () => {
-  it("builds todo alarms for enabled future todos", () => {
+  it("builds personal todo alarms for enabled future todos", () => {
     const due = new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    const alarms = buildTodoAlarms("course-1", "Physics", [
+    const alarms = buildPersonalTodoAlarms([
       {
         id: "t1",
         title: "Problem set",
@@ -15,8 +20,10 @@ describe("build-alarms", () => {
       },
     ]);
     expect(alarms).toHaveLength(1);
-    expect(alarms[0]?.title).toBe("Physics reminder");
+    expect(alarms[0]?.title).toBe("Reminder");
     expect(alarms[0]?.body).toBe("Problem set");
+    expect(alarms[0]?.href).toBe("/logs");
+    expect(alarms[0]?.id).toBe("personal-todo:t1");
   });
 
   it("builds class start alarms from timetable storage", () => {
@@ -55,7 +62,7 @@ describe("build-alarms", () => {
   it("deduplicates merged alarms", () => {
     const due = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     const alarm = {
-      id: "todo:c1:t1",
+      id: "personal-todo:t1",
       fireAt: due,
       title: "A",
       body: "B",

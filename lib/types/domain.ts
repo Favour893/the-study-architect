@@ -64,15 +64,6 @@ export type Topic = {
   updatedAt?: unknown;
 };
 
-export type CourseTodo = {
-  id: string;
-  title: string;
-  done: boolean;
-  /** ISO datetime string for due date / alarm. */
-  dueAt: string | null;
-  alarmEnabled: boolean;
-};
-
 export type CourseNote = {
   id: string;
   /** Optional display title; when empty, derived from the first sentence of body. */
@@ -82,9 +73,32 @@ export type CourseNote = {
   updatedAt: string;
 };
 
+/** Course plans are notes-only; to-dos live on Personal Logs. */
 export type CoursePlan = {
   notes: CourseNote[];
-  todos: CourseTodo[];
+};
+
+export type PersonalTodo = {
+  id: string;
+  title: string;
+  done: boolean;
+  /** ISO datetime string for due date / alarm. */
+  dueAt: string | null;
+  alarmEnabled: boolean;
+};
+
+export type PersonalNote = {
+  id: string;
+  /** Optional display title; when empty, derived from the first sentence of body. */
+  title: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PersonalLog = {
+  notes: PersonalNote[];
+  todos: PersonalTodo[];
 };
 
 export type AdminDashboardUserSummary = {

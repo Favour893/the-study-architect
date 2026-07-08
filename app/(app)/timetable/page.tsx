@@ -30,8 +30,6 @@ import {
 } from "@/lib/ui/form-styles";
 import { TimetablePhotoImport } from "@/components/timetable/timetable-photo-import";
 import { ExamTimetableSection } from "@/components/timetable/exam-timetable-section";
-import { PersonalTimetableButton } from "@/components/timetable/personal-timetable-modal";
-
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const dayAccent: Record<string, string> = {
   Monday: "text-sky-700 dark:text-sky-300",
@@ -724,7 +722,6 @@ export default function TimetablePage() {
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <PersonalTimetableButton />
             <TimetablePhotoImport
               courses={courses}
               activeSemesterId={activeSemesterId}

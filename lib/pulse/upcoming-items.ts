@@ -1,6 +1,6 @@
 import type { ExamTimetableColumn, ExamTimetableRow } from "../exam-timetable-storage";
 import { formatExamDateDisplay, formatTimeDisplay, toDateInputValue } from "../exam-timetable-dates";
-import type { CourseTodo } from "../types/domain";
+import type { PersonalTodo } from "../types/domain";
 
 export type PulseFeedItemKind = "todo" | "exam";
 
@@ -76,29 +76,24 @@ function isOverdue(when: Date | null, now: Date, done: boolean): boolean {
   return when.getTime() < now.getTime();
 }
 
-export function buildTodoFeedItems(
-  courseId: string,
-  courseName: string,
-  todos: CourseTodo[],
-  now: Date,
-): PulseFeedItem[] {
+export function buildPersonalTodoFeedItems(todos: PersonalTodo[], now: Date): PulseFeedItem[] {
   return todos
     .filter((todo) => !todo.done)
     .map((todo) => {
       const when = todo.dueAt ? new Date(todo.dueAt) : null;
       const validWhen = when && !Number.isNaN(when.getTime()) ? when : null;
       return {
-        id: `todo:${courseId}:${todo.id}`,
+        id: `personal-todo:${todo.id}`,
         kind: "todo" as const,
         title: todo.title,
-        subtitle: courseName,
+        subtitle: "Personal log",
         when: validWhen,
         whenLabel: validWhen ? formatWhenLabel(validWhen, now) : "No due date",
-        courseName,
+        courseName: "Personal log",
         hasAlarm: todo.alarmEnabled && Boolean(todo.dueAt),
         done: todo.done,
         overdue: isOverdue(validWhen, now, todo.done),
-        href: `/courses/${courseId}`,
+        href: "/logs",
       };
     });
 }

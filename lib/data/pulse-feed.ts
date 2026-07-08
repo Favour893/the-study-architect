@@ -1,30 +1,24 @@
-import { getCoursePlan } from "./course-plan";
 import { fetchExamTimetableFromFirestore } from "./exam-timetable";
-import { listCourses } from "./courses";
+import { getPersonalLog } from "./personal-log";
 import { loadExamTimetableLocal } from "../exam-timetable-storage";
 import { hasFirebaseConfig } from "../firebase/client";
 import {
   buildExamFeedItems,
-  buildTodoFeedItems,
+  buildPersonalTodoFeedItems,
   mergeAndSortPulseFeed,
   type PulseFeedItem,
 } from "../pulse/upcoming-items";
 
 export async function loadPulseFeed(uid: string, semesterId: string): Promise<PulseFeedItem[]> {
-  const courses = await listCourses(uid, semesterId);
-  const todoItems: PulseFeedItem[] = [];
   const now = new Date();
+  let todoItems: PulseFeedItem[] = [];
 
-  await Promise.all(
-    courses.map(async (course) => {
-      try {
-        const plan = await getCoursePlan(uid, semesterId, course.id);
-        todoItems.push(...buildTodoFeedItems(course.id, course.title, plan.todos, now));
-      } catch {
-        // skip course plan load errors
-      }
-    }),
-  );
+  try {
+    const personalLog = await getPersonalLog(uid);
+    todoItems = buildPersonalTodoFeedItems(personalLog.todos, now);
+  } catch {
+    todoItems = [];
+  }
 
   let examStorage = hasFirebaseConfig ? await fetchExamTimetableFromFirestore(uid, semesterId) : null;
   if (!examStorage) {

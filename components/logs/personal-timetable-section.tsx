@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CalendarDays } from "lucide-react";
 import {
   PERSONAL_TIMETABLE_DAYS,
   PERSONAL_TIMETABLE_END_HOUR,
@@ -75,10 +75,10 @@ function readStoredEntries(uid: string): TimetableState {
   return parsed?.entries ?? {};
 }
 
-export function PersonalTimetableButton() {
+export function PersonalTimetableSection() {
   const { user } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
   const [entries, setEntries] = useState<TimetableState>({});
+  const [ready, setReady] = useState(false);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [draggingKey, setDraggingKey] = useState<string | null>(null);
   const [draftEntry, setDraftEntry] = useState<TimetableEntry>({
@@ -90,39 +90,37 @@ export function PersonalTimetableButton() {
   });
 
   useEffect(() => {
-    if (!isOpen || !user) {
+    if (!user) {
+      setEntries({});
+      setReady(false);
       return;
     }
-    const key = personalTimetableStorageKey(user.uid);
-    window.localStorage.setItem(key, serializePersonalTimetableStorage(entries));
-  }, [entries, isOpen, user]);
+    setEntries(readStoredEntries(user.uid));
+    setReady(true);
+  }, [user]);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (!ready || !user) {
+      return;
+    }
+    window.localStorage.setItem(
+      personalTimetableStorageKey(user.uid),
+      serializePersonalTimetableStorage(entries),
+    );
+  }, [entries, ready, user]);
+
+  useEffect(() => {
+    if (!editingKey) {
       return;
     }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        if (editingKey) {
-          closeEditor();
-        } else {
-          setIsOpen(false);
-        }
+        closeEditor();
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [isOpen, editingKey]);
-
-  const entryCount = useMemo(() => {
-    if (!user) {
-      return 0;
-    }
-    if (isOpen) {
-      return Object.keys(entries).length;
-    }
-    return Object.keys(readStoredEntries(user.uid)).length;
-  }, [user, isOpen, entries]);
+  }, [editingKey]);
 
   function openEditor(day: string, slotKey: string) {
     const slotIndex = slotKeyToIndex(slotKey);
@@ -345,117 +343,82 @@ export function PersonalTimetableButton() {
     });
   }
 
-  function handleOpen() {
-    if (user) {
-      setEntries(readStoredEntries(user.uid));
-    }
-    setEditingKey(null);
-    setIsOpen(true);
-  }
-
-  function handleClose() {
-    setIsOpen(false);
-    setEditingKey(null);
+  if (!user) {
+    return (
+      <section className="overflow-hidden rounded-2xl border border-app-border bg-panel p-4 shadow-sm">
+        <p className="text-sm text-app-subtle">Sign in to use your personal timetable.</p>
+      </section>
+    );
   }
 
   return (
     <>
-      <button
-        type="button"
-        onClick={handleOpen}
-        disabled={!user}
-        className={`inline-flex items-center gap-1.5 ${FORM_SECONDARY_BUTTON_CLASS}`}
-        title={user ? "Plan your full week" : "Sign in to use personal timetable"}
+      <section
+        className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm"
+        data-page-guide="logs-timetable"
       >
-        <CalendarDays className="h-4 w-4 text-app-accent" />
-        Personal timetable
-        {entryCount > 0 ? (
-          <span className="rounded-full bg-app-accent-soft px-1.5 py-0.5 text-[10px] font-semibold text-app-accent">
-            {entryCount}
-          </span>
-        ) : null}
-      </button>
-
-      {isOpen ? (
-        <div
-          className="fixed inset-0 z-40 flex flex-col bg-black/40 p-3 sm:p-5"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="personal-timetable-title"
-          onClick={(event) => {
-            if (event.target === event.currentTarget && !editingKey) {
-              handleClose();
-            }
-          }}
-        >
-          <div className="mx-auto flex min-h-0 w-full max-w-[min(100%,96rem)] flex-1 flex-col overflow-hidden rounded-2xl border border-app-border bg-panel shadow-2xl">
-            <div className="h-1 shrink-0 bg-gradient-to-r from-teal-500 via-cyan-500 to-sky-500" />
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-app-border px-4 py-3">
-              <div>
-                <h2 id="personal-timetable-title" className="text-base font-semibold text-app-fg">
-                  Personal timetable
-                </h2>
-                <p className="text-xs text-app-subtle">Monday to Sunday, all 24 hours — saved on this device.</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleClose}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-app-border text-app-subtle transition hover:bg-app-muted hover:text-app-fg"
-                aria-label="Close personal timetable"
-              >
-                <X className="h-4 w-4" />
-              </button>
+        <div className="h-1 bg-gradient-to-r from-teal-500 via-cyan-500 to-sky-500" />
+        <div className="space-y-3 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-200 text-teal-900 dark:bg-teal-900 dark:text-teal-100">
+              <CalendarDays className="h-4 w-4" />
             </div>
-
-            <p className="shrink-0 px-4 py-1.5 text-xs text-app-subtle">
-              Swipe horizontally to view all hours. Long blocks continue on the next day automatically.
-            </p>
-
-            <div className="min-h-0 flex-1 overflow-auto overscroll-contain px-2 pb-3 sm:px-4">
-              <table
-                  className="table-fixed border-separate border-spacing-0"
-                  style={{ width: timetableGridWidth, minWidth: timetableGridWidth }}
-                >
-                  <colgroup>
-                    <col className="w-28" />
-                    {slots.map((slot) => (
-                      <col key={slot.key} className="w-16" />
-                    ))}
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th className="sticky left-0 z-20 w-28 min-w-28 border-b border-r border-app-border bg-app-accent-soft px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-app-accent shadow-[4px_0_8px_-2px_rgba(15,23,42,0.1)]">
-                        Day
-                      </th>
-                      {slots.map((slot) => (
-                        <th
-                          key={slot.key}
-                          className="w-16 min-w-16 max-w-16 border-b border-app-border bg-app-violet-soft/50 px-1 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-app-violet"
-                        >
-                          <span className="block truncate">{slot.label}</span>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {PERSONAL_TIMETABLE_DAYS.map((day) => (
-                      <tr key={day}>
-                        <td
-                          className={`sticky left-0 z-20 w-28 min-w-28 whitespace-nowrap border-b border-r border-app-border bg-panel px-3 py-2 text-sm font-semibold shadow-[4px_0_8px_-2px_rgba(15,23,42,0.1)] ${dayAccent[day] ?? "text-app-fg"}`}
-                        >
-                          {day}
-                        </td>
-                        {renderDayCells(day)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div>
+              <p className="text-sm font-semibold text-app-fg">Personal timetable</p>
+              <p className="text-xs text-app-subtle">
+                Monday to Sunday, all 24 hours — saved on this device. Tap a cell to add a block.
+              </p>
             </div>
           </div>
-        </div>
-      ) : null}
 
-      {isOpen && editingKey ? (
+          <p className="text-xs text-app-subtle">
+            Swipe horizontally to view all hours. Long blocks continue on the next day automatically.
+          </p>
+
+          <div className="overflow-x-auto overscroll-contain">
+            <table
+              className="table-fixed border-separate border-spacing-0"
+              style={{ width: timetableGridWidth, minWidth: timetableGridWidth }}
+            >
+              <colgroup>
+                <col className="w-28" />
+                {slots.map((slot) => (
+                  <col key={slot.key} className="w-16" />
+                ))}
+              </colgroup>
+              <thead>
+                <tr>
+                  <th className="sticky left-0 z-20 w-28 min-w-28 border-b border-r border-app-border bg-app-accent-soft px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-app-accent shadow-[4px_0_8px_-2px_rgba(15,23,42,0.1)]">
+                    Day
+                  </th>
+                  {slots.map((slot) => (
+                    <th
+                      key={slot.key}
+                      className="w-16 min-w-16 max-w-16 border-b border-app-border bg-app-violet-soft/50 px-1 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-app-violet"
+                    >
+                      <span className="block truncate">{slot.label}</span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {PERSONAL_TIMETABLE_DAYS.map((day) => (
+                  <tr key={day}>
+                    <td
+                      className={`sticky left-0 z-20 w-28 min-w-28 whitespace-nowrap border-b border-r border-app-border bg-panel px-3 py-2 text-sm font-semibold shadow-[4px_0_8px_-2px_rgba(15,23,42,0.1)] ${dayAccent[day] ?? "text-app-fg"}`}
+                    >
+                      {day}
+                    </td>
+                    {renderDayCells(day)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {editingKey ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="w-full max-w-md overflow-hidden rounded-2xl border border-app-border bg-panel shadow-xl">
             <div className="h-1 bg-gradient-to-r from-teal-500 to-cyan-500" />

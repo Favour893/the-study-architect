@@ -17,6 +17,10 @@ const MOBILE_ACCENT: Record<string, { active: string; icon: string }> = {
     active: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300",
     icon: "text-emerald-600 dark:text-emerald-400",
   },
+  "/logs": {
+    active: "bg-teal-100 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300",
+    icon: "text-teal-600 dark:text-teal-400",
+  },
   "/timetable": {
     active: "bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300",
     icon: "text-violet-600 dark:text-violet-400",

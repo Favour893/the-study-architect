@@ -121,12 +121,7 @@ export default function CourseDetailPage() {
       </header>
 
       {user && activeSemesterId ? (
-        <CoursePlanner
-          uid={user.uid}
-          semesterId={activeSemesterId}
-          courseId={courseId}
-          courseTitle={course.title}
-        />
+        <CoursePlanner uid={user.uid} semesterId={activeSemesterId} courseId={courseId} />
       ) : null}
     </div>
   );

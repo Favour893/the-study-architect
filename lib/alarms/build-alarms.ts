@@ -1,4 +1,4 @@
-import type { CourseTodo } from "../types/domain";
+import type { PersonalTodo } from "../types/domain";
 import type { ExamTimetableColumn, ExamTimetableRow } from "../exam-timetable-storage";
 import type { ScheduledAlarm } from "./types";
 import { ALARM_MAX_FUTURE_MS } from "./types";
@@ -27,12 +27,7 @@ function isWithinHorizon(fireAtMs: number, nowMs: number) {
   return fireAtMs > nowMs && fireAtMs - nowMs <= ALARM_MAX_FUTURE_MS;
 }
 
-export function buildTodoAlarms(
-  courseId: string,
-  courseTitle: string,
-  todos: CourseTodo[],
-  now = new Date(),
-): ScheduledAlarm[] {
+export function buildPersonalTodoAlarms(todos: PersonalTodo[], now = new Date()): ScheduledAlarm[] {
   const nowMs = now.getTime();
   const alarms: ScheduledAlarm[] = [];
   for (const todo of todos) {
@@ -44,11 +39,11 @@ export function buildTodoAlarms(
       continue;
     }
     alarms.push({
-      id: `todo:${courseId}:${todo.id}`,
+      id: `personal-todo:${todo.id}`,
       fireAt: new Date(fireAtMs).toISOString(),
-      title: `${courseTitle} reminder`,
+      title: "Reminder",
       body: todo.title,
-      href: `/courses/${courseId}`,
+      href: "/logs",
     });
   }
   return alarms;

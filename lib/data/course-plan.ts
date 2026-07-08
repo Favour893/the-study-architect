@@ -1,28 +1,9 @@
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { notifyAlarmsChanged } from "@/lib/alarms/alarm-events";
 import { getDb } from "../firebase/db";
-import type { CourseNote, CoursePlan, CourseTodo } from "../types/domain";
+import type { CourseNote, CoursePlan } from "../types/domain";
 
 function coursePlanPath(uid: string, semesterId: string, courseId: string) {
   return `users/${uid}/semesters/${semesterId}/courses/${courseId}/plan/main`;
-}
-
-function normalizeTodo(value: unknown): CourseTodo | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-  const row = value as Record<string, unknown>;
-  const title = typeof row.title === "string" ? row.title.trim() : "";
-  if (!title) {
-    return null;
-  }
-  return {
-    id: typeof row.id === "string" ? row.id : crypto.randomUUID(),
-    title,
-    done: row.done === true,
-    dueAt: typeof row.dueAt === "string" && row.dueAt ? row.dueAt : null,
-    alarmEnabled: row.alarmEnabled === true,
-  };
 }
 
 function normalizeNote(value: unknown): CourseNote | null {
@@ -76,15 +57,11 @@ export async function getCoursePlan(
   const db = getDb();
   const snapshot = await getDoc(doc(db, coursePlanPath(uid, semesterId, courseId)));
   if (!snapshot.exists()) {
-    return { notes: [], todos: [] };
+    return { notes: [] };
   }
   const data = snapshot.data() as Record<string, unknown>;
-  const todos = Array.isArray(data.todos)
-    ? data.todos.map(normalizeTodo).filter((todo): todo is CourseTodo => todo !== null)
-    : [];
   return {
     notes: normalizeNotesFromFirestore(data),
-    todos,
   };
 }
 
@@ -105,16 +82,8 @@ export async function saveCoursePlan(
         createdAt: note.createdAt,
         updatedAt: note.updatedAt,
       })),
-      todos: plan.todos.map((todo) => ({
-        id: todo.id,
-        title: todo.title.trim(),
-        done: todo.done,
-        dueAt: todo.dueAt,
-        alarmEnabled: todo.alarmEnabled,
-      })),
       updatedAt: serverTimestamp(),
     },
     { merge: true },
   );
-  notifyAlarmsChanged();
 }

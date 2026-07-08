@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, CalendarDays, Clock3, Gauge, Shield, Sigma } from "lucide-react";
+import { BookOpen, CalendarDays, Clock3, Gauge, NotebookPen, Shield, Sigma } from "lucide-react";
 import { getClientAuth } from "@/lib/firebase/auth";
 import { useSemester } from "@/providers/semester-provider";
 import { useAuth } from "@/providers/auth-provider";
@@ -17,6 +17,7 @@ type AppShellProps = {
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Pulse", icon: Gauge },
   { href: "/courses", label: "Courses", icon: BookOpen },
+  { href: "/logs", label: "Personal Logs", icon: NotebookPen },
   { href: "/timetable", label: "Timetable", icon: Clock3 },
   { href: "/calculator", label: "Grade Calculator", icon: Sigma },
   { href: "/onboarding", label: "Semester", icon: CalendarDays },

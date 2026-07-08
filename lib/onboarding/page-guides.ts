@@ -2,6 +2,7 @@ export type PageGuideId =
   | "dashboard"
   | "courses"
   | "course-detail"
+  | "logs"
   | "timetable"
   | "calculator"
   | "semester";
@@ -24,7 +25,7 @@ export const PAGE_GUIDES: Record<PageGuideId, PageGuideStep[]> = {
     {
       target: "pulse-upcoming",
       title: "Coming up",
-      body: "Your to-dos, exams, and alarms from Courses and Timetable land here.",
+      body: "Your personal to-dos, exams, and alarms from Personal Logs and Timetable land here.",
       placement: "bottom",
     },
     {
@@ -51,9 +52,29 @@ export const PAGE_GUIDES: Record<PageGuideId, PageGuideStep[]> = {
   "course-detail": [
     {
       target: "course-planner",
-      title: "Notes & plan",
-      body: "Write course notes and save them as cards. Add to-dos with optional alarms for reminders.",
+      title: "Course notes",
+      body: "Write course notes and save them as cards for later review.",
       placement: "bottom",
+    },
+  ],
+  logs: [
+    {
+      target: "logs-todos",
+      title: "To-dos & reminders",
+      body: "Add daily tasks with due times and reminder alarms that notify on your phone.",
+      placement: "bottom",
+    },
+    {
+      target: "logs-notes",
+      title: "Personal notes",
+      body: "Keep general notes here — separate from course notes.",
+      placement: "bottom",
+    },
+    {
+      target: "logs-timetable",
+      title: "Personal timetable",
+      body: "Plan your week with free-form blocks for study, work, or habits.",
+      placement: "top",
     },
   ],
   timetable: [
@@ -109,6 +130,9 @@ export function pathnameToPageGuideId(pathname: string): PageGuideId | null {
   }
   if (pathname.startsWith("/courses/")) {
     return "course-detail";
+  }
+  if (pathname === "/logs") {
+    return "logs";
   }
   if (pathname === "/timetable") {
     return "timetable";

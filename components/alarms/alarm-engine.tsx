@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { ALARMS_CHANGED_EVENT } from "@/lib/alarms/alarm-events";
-import { buildClassAlarms, buildExamAlarms, buildTodoAlarms, mergeAlarms } from "@/lib/alarms/build-alarms";
+import {
+  buildClassAlarms,
+  buildExamAlarms,
+  buildPersonalTodoAlarms,
+  mergeAlarms,
+} from "@/lib/alarms/build-alarms";
 import { playAlarmSound } from "@/lib/alarms/play-alarm-sound";
 import {
   ALARM_CHECK_INTERVAL_MS,
@@ -13,9 +18,8 @@ import {
 import { markAlarmFired } from "@/lib/alarms/fired-store";
 import { deliverAlarm } from "@/lib/alarms/notifications";
 import type { ScheduledAlarm } from "@/lib/alarms/types";
-import { getCoursePlan } from "@/lib/data/course-plan";
-import { listCourses } from "@/lib/data/courses";
 import { fetchExamTimetableFromFirestore } from "@/lib/data/exam-timetable";
+import { getPersonalLog } from "@/lib/data/personal-log";
 import { loadExamTimetableLocal } from "@/lib/exam-timetable-storage";
 import { hasFirebaseConfig } from "@/lib/firebase/client";
 import { TIMETABLE_LEGACY_STORAGE_KEY, timetableStorageKeyForUserSemester } from "@/lib/timetable-storage";
@@ -40,23 +44,21 @@ export function AlarmEngine() {
   const alarmsRef = useRef<ScheduledAlarm[]>([]);
 
   const loadAlarms = useCallback(async () => {
-    if (!user || !activeSemesterId) {
+    if (!user) {
       return [];
     }
 
-    const courses = await listCourses(user.uid, activeSemesterId);
-    const todoAlarms = (
-      await Promise.all(
-        courses.map(async (course) => {
-          try {
-            const plan = await getCoursePlan(user.uid, activeSemesterId, course.id);
-            return buildTodoAlarms(course.id, course.title, plan.todos);
-          } catch {
-            return [];
-          }
-        }),
-      )
-    ).flat();
+    let personalTodoAlarms: ScheduledAlarm[] = [];
+    try {
+      const personalLog = await getPersonalLog(user.uid);
+      personalTodoAlarms = buildPersonalTodoAlarms(personalLog.todos);
+    } catch {
+      personalTodoAlarms = [];
+    }
+
+    if (!activeSemesterId) {
+      return mergeAlarms(personalTodoAlarms);
+    }
 
     let examStorage = hasFirebaseConfig
       ? await fetchExamTimetableFromFirestore(user.uid, activeSemesterId)
@@ -73,11 +75,11 @@ export function AlarmEngine() {
       ? buildClassAlarms(resolveTimetableRaw(user.uid, activeSemesterId))
       : [];
 
-    return mergeAlarms(todoAlarms, examAlarms, classAlarms);
+    return mergeAlarms(personalTodoAlarms, examAlarms, classAlarms);
   }, [user, activeSemesterId]);
 
   useEffect(() => {
-    if (!user || !activeSemesterId || semesterLoading) {
+    if (!user || semesterLoading) {
       alarmsRef.current = [];
       return;
     }

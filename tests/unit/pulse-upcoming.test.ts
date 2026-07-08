@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildExamFeedItems,
-  buildTodoFeedItems,
+  buildPersonalTodoFeedItems,
   examRowWhen,
   pickPulseHeadline,
   upcomingWithinDays,
@@ -19,20 +19,24 @@ describe("examRowWhen", () => {
   });
 });
 
-describe("buildTodoFeedItems", () => {
+describe("buildPersonalTodoFeedItems", () => {
   it("marks overdue todos", () => {
     const now = new Date("2026-07-05T12:00:00");
-    const items = buildTodoFeedItems("c1", "Math", [
-      {
-        id: "t1",
-        title: "Revise chapter 3",
-        done: false,
-        dueAt: "2026-07-01T10:00:00.000Z",
-        alarmEnabled: true,
-      },
-    ], now);
+    const items = buildPersonalTodoFeedItems(
+      [
+        {
+          id: "t1",
+          title: "Revise chapter 3",
+          done: false,
+          dueAt: "2026-07-01T10:00:00.000Z",
+          alarmEnabled: true,
+        },
+      ],
+      now,
+    );
     expect(items[0]?.overdue).toBe(true);
     expect(items[0]?.hasAlarm).toBe(true);
+    expect(items[0]?.href).toBe("/logs");
   });
 });
 
@@ -67,9 +71,10 @@ describe("pickPulseHeadline", () => {
   it("prefers overdue items", () => {
     const now = new Date("2026-07-05T12:00:00");
     const items = [
-      ...buildTodoFeedItems("c1", "Math", [
-        { id: "t1", title: "Late task", done: false, dueAt: "2026-07-01T10:00:00.000Z", alarmEnabled: false },
-      ], now),
+      ...buildPersonalTodoFeedItems(
+        [{ id: "t1", title: "Late task", done: false, dueAt: "2026-07-01T10:00:00.000Z", alarmEnabled: false }],
+        now,
+      ),
       ...buildExamFeedItems(DEFAULT_EXAM_COLUMNS, [], now),
     ];
     const headline = pickPulseHeadline(items, now);
