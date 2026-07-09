@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { CoursePlanner } from "@/components/courses/course-planner";
+import { ShimmerBlock, ShimmerPage, ShimmerPanel } from "@/components/ui/shimmer";
 import { pickCourseAccent } from "@/lib/ui/accents";
 import { listCourses } from "@/lib/data/courses";
 import type { Course } from "@/lib/types/domain";
@@ -63,13 +64,10 @@ export default function CourseDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-5">
-        <div className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
-          <div className="h-1.5 animate-pulse bg-gradient-to-r from-emerald-500 via-sky-500 to-violet-500" />
-          <div className="h-24 animate-pulse bg-app-accent-soft/40 p-6" />
-        </div>
-        <div className="h-32 animate-pulse rounded-2xl bg-app-muted" />
-      </div>
+      <ShimmerPage>
+        <ShimmerPanel barClassName="from-emerald-500 via-sky-500 to-violet-500" bodyClassName="h-24" />
+        <ShimmerBlock className="h-32 rounded-2xl" />
+      </ShimmerPage>
     );
   }
 

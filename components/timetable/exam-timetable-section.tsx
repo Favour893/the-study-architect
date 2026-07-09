@@ -37,6 +37,7 @@ import {
 } from "@/lib/ui/form-styles";
 import { useAuth } from "@/providers/auth-provider";
 import { useToast } from "@/providers/toast-provider";
+import { ShimmerPanel } from "@/components/ui/shimmer";
 
 type ExamTimetableSectionProps = {
   activeSemesterId: string | null;
@@ -337,13 +338,8 @@ export function ExamTimetableSection({
     );
   }
 
-  if (!hydrated) {
-    return (
-      <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
-        <div className="h-1 animate-pulse bg-gradient-to-r from-rose-500 to-amber-500" />
-        <div className="h-32 animate-pulse bg-app-accent-soft/30" />
-      </section>
-    );
+  if (!hydrated || semesterLoading) {
+    return <ShimmerPanel barClassName="from-rose-500 to-amber-500" bodyClassName="h-32" />;
   }
 
   return (

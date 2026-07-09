@@ -1,4 +1,4 @@
-const CACHE_NAME = "tsa-v8";
+const CACHE_NAME = "tsa-v9";
 const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html"];
 const ALARM_DB_NAME = "tsa-alarms-v1";
 const ALARM_STORE = "meta";
@@ -190,6 +190,47 @@ function notificationOptions(alarm, key, includeVibrate) {
     options.vibrate = [500, 150, 500, 150, 500];
   }
   return options;
+}
+
+async function syncOsScheduledAlarms() {
+  if (!notificationsEnabled || typeof TimestampTrigger === "undefined") {
+    return;
+  }
+
+  const existing = await self.registration.getNotifications();
+  for (const notification of existing) {
+    const tag = notification.tag || "";
+    if (ringingAlarmKeys.has(tag)) {
+      continue;
+    }
+    notification.close();
+  }
+
+  const now = Date.now();
+  for (const alarm of pendingAlarms) {
+    const key = alarmKey(alarm);
+    if (firedAlarmKeys.has(key) || ringingAlarmKeys.has(key)) {
+      continue;
+    }
+    const due = new Date(alarm.fireAt).getTime();
+    if (Number.isNaN(due) || due <= now) {
+      continue;
+    }
+    try {
+      await self.registration.showNotification(alarm.title, {
+        body: `${alarm.body}\n\nTap or swipe away to turn off.`,
+        tag: key,
+        icon: "/logo-mark.png",
+        badge: "/logo-mark.png",
+        silent: false,
+        requireInteraction: true,
+        data: notificationData(alarm, key),
+        showTrigger: new TimestampTrigger(due),
+      });
+    } catch {
+      // OS-scheduled notifications are not supported on this device.
+    }
+  }
 }
 
 async function showAlarmNotification(alarm, key) {
@@ -387,8 +428,11 @@ async function scheduleNextAlarm() {
   }
 
   if (earliestFutureDue === null) {
+    await syncOsScheduledAlarms();
     return;
   }
+
+  await syncOsScheduledAlarms();
 
   const delay = computeAlarmDelay(earliestFutureDue - now);
   alarmTimer = setTimeout(() => {
@@ -413,7 +457,10 @@ self.addEventListener("message", (event) => {
       }
     }
     const replyPort = event.ports?.[0];
-    const finalize = persistAlarmState().then(() => scheduleNextAlarm()).then(() => {
+    const finalize = persistAlarmState()
+      .then(() => syncOsScheduledAlarms())
+      .then(() => scheduleNextAlarm())
+      .then(() => {
       if (replyPort) {
         replyPort.postMessage({ ok: true });
       }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { CourseCard } from "@/components/courses/course-card";
 import { CourseForm } from "@/components/courses/course-form";
+import { ShimmerCourseCards } from "@/components/ui/shimmer";
 import { createCourse, deleteCourse, listCourses, updateCourse } from "@/lib/data/courses";
 import type { Course } from "@/lib/types/domain";
 import { useAuth } from "@/providers/auth-provider";
@@ -139,13 +140,7 @@ export default function CoursesPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="space-y-3">
-        <div className="h-12 animate-pulse rounded-xl bg-app-muted" />
-        <div className="h-28 animate-pulse rounded-xl bg-app-muted" />
-        <div className="h-28 animate-pulse rounded-xl bg-app-muted" />
-      </div>
-    );
+    return <ShimmerCourseCards />;
   }
 
   return (

@@ -32,6 +32,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { useSemester } from "@/providers/semester-provider";
 import { useToast } from "@/providers/toast-provider";
 import { SegmentedControl } from "@/components/ui/segmented-control";
+import { ShimmerList, ShimmerPage, ShimmerPanel } from "@/components/ui/shimmer";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Calculator, Sigma, TrendingUp } from "lucide-react";
@@ -440,13 +441,9 @@ export default function CalculatorPage() {
 
   if (!hydrated) {
     return (
-      <div className="space-y-5">
-        <div className="h-10 animate-pulse rounded-lg bg-app-accent-light" />
-        <div className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
-          <div className="h-1.5 animate-pulse bg-gradient-to-r from-amber-500 via-violet-500 to-emerald-500" />
-          <div className="h-44 animate-pulse bg-app-accent-soft/40 p-6" />
-        </div>
-      </div>
+      <ShimmerPage>
+        <ShimmerPanel barClassName="from-amber-500 via-violet-500 to-emerald-500" bodyClassName="h-44" />
+      </ShimmerPage>
     );
   }
 
@@ -499,7 +496,7 @@ export default function CalculatorPage() {
         </div>
 
         {isVaultSemester && !coursesListReady ? (
-          <p className="text-sm text-app-subtle">Loading courses for this semester…</p>
+          <ShimmerList count={3} itemClassName="h-12" />
         ) : null}
 
         {isVaultSemester && coursesListReady && !hasVaultCourses ? (

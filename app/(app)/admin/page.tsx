@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Shield, Users, UserCheck, CalendarClock } from "lucide-react";
 import { getClientAuth } from "@/lib/firebase/auth";
 import type { AdminUsersDashboardResponse } from "@/lib/types/domain";
+import { ShimmerStatGrid } from "@/components/ui/shimmer";
 import { useAuth } from "@/providers/auth-provider";
 
 export default function AdminDashboardPage() {
@@ -88,7 +89,7 @@ export default function AdminDashboardPage() {
       </section>
 
       {loading ? (
-        <p className="rounded-xl border border-app-border bg-panel px-4 py-6 text-sm text-app-subtle">Loading admin data...</p>
+        <ShimmerStatGrid count={3} />
       ) : error ? (
         <p className="rounded-xl border border-rose-300 bg-rose-50 px-4 py-6 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
           {error}

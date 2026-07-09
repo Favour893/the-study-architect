@@ -1,6 +1,7 @@
 import { saveCachedAlarms } from "./alarm-cache";
 import { persistAlarmSchedule } from "./alarm-persist";
 import { hasAlarmFired, listFiredAlarmKeys, mergeFiredAlarmKeys } from "./fired-store";
+import { scheduleOsNotifications } from "./os-notification-schedule";
 import { areAppNotificationsEnabled } from "./notification-preference";
 import { deliverAlarm, hasNotificationPermission } from "./notifications";
 import type { ScheduledAlarm } from "./types";
@@ -136,6 +137,7 @@ export async function flushAlarmScheduleToServiceWorker(alarms: ScheduledAlarm[]
   });
 
   await postSyncToServiceWorker(scheduledAlarms, notificationsEnabled);
+  await scheduleOsNotifications(scheduledAlarms, new Set(firedKeys));
   if (notificationsEnabled) {
     await registerBackgroundAlarmWake();
   }

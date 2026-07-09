@@ -1,0 +1,15 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "alarmJobs",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "fired",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

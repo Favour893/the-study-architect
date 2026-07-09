@@ -30,6 +30,7 @@ import {
   FORM_SELECT_CLASS,
 } from "@/lib/ui/form-styles";
 import { ExamTimetableSection } from "@/components/timetable/exam-timetable-section";
+import { ShimmerTimetable } from "@/components/ui/shimmer";
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const dayAccent: Record<string, string> = {
   Monday: "text-sky-700 dark:text-sky-300",
@@ -710,6 +711,9 @@ export default function TimetablePage() {
   }
 
   return (
+    !timetableStorageReady || semesterLoading ? (
+      <ShimmerTimetable />
+    ) : (
     <div className="space-y-5">
       <div className="min-w-0 rounded-xl border border-app-border bg-panel shadow-sm" data-page-guide="timetable-grid">
         <div className="h-1 bg-gradient-to-r from-sky-500 via-violet-500 to-rose-500" />
@@ -915,5 +919,6 @@ export default function TimetablePage() {
         courses={courses}
       />
     </div>
+    )
   );
 }

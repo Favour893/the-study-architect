@@ -10,6 +10,7 @@ import {
   FORM_PRIMARY_BUTTON_CLASS,
   FORM_SECONDARY_BUTTON_CLASS,
 } from "@/lib/ui/form-styles";
+import { ShimmerPanel } from "@/components/ui/shimmer";
 import { useToast } from "@/providers/toast-provider";
 
 type CoursePlannerProps = {
@@ -128,12 +129,7 @@ export function CoursePlanner({ uid, semesterId, courseId }: CoursePlannerProps)
   }
 
   if (isLoading) {
-    return (
-      <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
-        <div className="h-1 animate-pulse bg-gradient-to-r from-amber-500 to-violet-500" />
-        <div className="h-40 animate-pulse bg-app-accent-soft/30 p-6" />
-      </section>
-    );
+    return <ShimmerPanel barClassName="from-amber-500 to-violet-500" bodyClassName="h-40" />;
   }
 
   return (

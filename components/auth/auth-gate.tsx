@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { ShimmerAppShell } from "@/components/ui/shimmer";
 import { useAuth } from "@/providers/auth-provider";
 import { getUserProfile } from "@/lib/data/semesters";
 
@@ -51,11 +52,7 @@ export function AuthGate({ children }: AuthGateProps) {
   }, [isLoading, pathname, router, user]);
 
   if (isLoading || isRouting) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-app">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-app-border border-t-app-accent" />
-      </div>
-    );
+    return <ShimmerAppShell />;
   }
 
   return <>{children}</>;

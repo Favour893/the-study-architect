@@ -1,12 +1,14 @@
+import { ShimmerBlock, ShimmerDashboard, ShimmerPageHeader } from "@/components/ui/shimmer";
+
 export default function Loading() {
   return (
     <main className="min-h-screen bg-app px-4 py-6 md:px-8">
       <div className="mx-auto max-w-6xl space-y-4">
-        <div className="h-10 w-1/3 animate-pulse rounded-lg bg-app-accent-light" />
-        <div className="h-40 animate-pulse rounded-2xl bg-app-accent-light/70" />
+        <ShimmerPageHeader />
+        <ShimmerDashboard />
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="h-28 animate-pulse rounded-2xl bg-app-accent-light/70" />
-          <div className="h-28 animate-pulse rounded-2xl bg-app-accent-light/70" />
+          <ShimmerBlock className="h-28 rounded-2xl" />
+          <ShimmerBlock className="h-28 rounded-2xl" />
         </div>
       </div>
     </main>

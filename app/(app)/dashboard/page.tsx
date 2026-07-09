@@ -12,6 +12,10 @@ import { getClientAuth } from "@/lib/firebase/auth";
 import { pickPulseHeadline, upcomingWithinDays, type PulseFeedItem } from "@/lib/pulse/upcoming-items";
 import { rankMissionTopics, resolveTopicStage } from "@/lib/pulse/study-mission";
 import { TIMETABLE_LEGACY_STORAGE_KEY, timetableStorageKeyForUserSemester } from "@/lib/timetable-storage";
+import {
+  ShimmerList,
+  ShimmerPanel,
+} from "@/components/ui/shimmer";
 import { useAuth } from "@/providers/auth-provider";
 import { useSemester } from "@/providers/semester-provider";
 
@@ -295,9 +299,6 @@ export default function DashboardPage() {
   }, [semesters, activeSemesterId, semesterLoading]);
 
   const semesterProgressLabel = useMemo(() => {
-    if (semesterLoading) {
-      return "Semester progress: …";
-    }
     if (!activeSemesterId) {
       return "Semester progress: choose a semester in the header";
     }
@@ -305,7 +306,7 @@ export default function DashboardPage() {
       return "Semester progress: set start and end dates for this semester";
     }
     return `Semester progress: ${semesterProgress.toFixed(0)}%`;
-  }, [semesterProgress, semesterLoading, activeSemesterId]);
+  }, [semesterProgress, activeSemesterId]);
 
   const activeSemester = useMemo(
     () => semesters.find((s) => s.id === activeSemesterId),
@@ -425,6 +426,17 @@ export default function DashboardPage() {
     }
   }
 
+  if (semesterLoading) {
+    return (
+      <div className="space-y-6">
+        <ShimmerPanel barClassName="from-sky-500 via-violet-500 to-amber-400" bodyClassName="min-h-[220px]" />
+        <ShimmerPanel barClassName="from-amber-500 via-rose-500 to-violet-500" bodyClassName="min-h-[200px]">
+          <ShimmerList count={4} itemClassName="h-14" />
+        </ShimmerPanel>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <section className="overflow-hidden rounded-2xl border border-app-border bg-panel shadow-sm">
@@ -535,7 +547,7 @@ export default function DashboardPage() {
           </p>
 
           {pulseFeedLoading ? (
-            <p className="mt-4 text-sm text-app-subtle">Loading your schedule…</p>
+            <ShimmerList count={4} itemClassName="h-14" />
           ) : upcomingItems.length === 0 ? (
             <p className="mt-4 rounded-xl border border-dashed border-app-border px-4 py-6 text-center text-sm text-app-subtle">
               No to-dos or exams yet. Add to-dos on Personal Logs or exams on the Timetable.

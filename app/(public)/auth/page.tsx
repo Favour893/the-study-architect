@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BookOpen, Sparkles } from "lucide-react";
 import { TsaLogoMark } from "@/components/brand/tsa-logo-mark";
 import { AuthForm } from "@/components/auth/auth-form";
+import { ShimmerAuthPage } from "@/components/ui/shimmer";
 import { getUserProfile } from "@/lib/data/semesters";
 import { useAuth } from "@/providers/auth-provider";
 
@@ -46,14 +47,7 @@ export default function AuthPage() {
   }, [isLoading, router, user]);
 
   if (isLoading || (user && isRouting)) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-app-accent-dark via-app-accent to-blue-500 px-4">
-        <div className="space-y-3 text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-          <p className="text-sm text-blue-100">Checking sign-in status...</p>
-        </div>
-      </main>
-    );
+    return <ShimmerAuthPage />;
   }
 
   return (

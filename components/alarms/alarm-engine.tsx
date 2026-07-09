@@ -22,10 +22,16 @@ import {
 import { markAlarmFired } from "@/lib/alarms/fired-store";
 import { canUseNotifications, deliverAlarm, stopAllAlarmAudio } from "@/lib/alarms/notifications";
 import type { ScheduledAlarm } from "@/lib/alarms/types";
+import {
+  markAlarmJobDismissed,
+  mergeFiredKeysFromAlarmJobs,
+  syncAlarmDispatch,
+} from "@/lib/data/alarm-dispatch";
 import { fetchExamTimetableFromFirestore } from "@/lib/data/exam-timetable";
 import { getPersonalLog } from "@/lib/data/personal-log";
 import { loadExamTimetableLocal } from "@/lib/exam-timetable-storage";
 import { hasFirebaseConfig } from "@/lib/firebase/client";
+import { ensureFcmToken } from "@/lib/firebase/messaging";
 import { TIMETABLE_LEGACY_STORAGE_KEY, timetableStorageKeyForUserSemester } from "@/lib/timetable-storage";
 import { useAuth } from "@/providers/auth-provider";
 import { useSemester } from "@/providers/semester-provider";
@@ -53,6 +59,7 @@ export function AlarmEngine() {
   const { user } = useAuth();
   const { activeSemesterId, isLoading: semesterLoading } = useSemester();
   const alarmsRef = useRef<ScheduledAlarm[]>([]);
+  const fcmTokenRef = useRef<string | null>(null);
 
   const loadAlarms = useCallback(async () => {
     if (!user) {
@@ -94,13 +101,32 @@ export function AlarmEngine() {
       return;
     }
 
+    const uid = user.uid;
     let cancelled = false;
     let clearTimers = () => {};
+
+    async function ensurePushToken() {
+      if (!canUseNotifications()) {
+        fcmTokenRef.current = null;
+        return null;
+      }
+      const token = await ensureFcmToken();
+      fcmTokenRef.current = token;
+      return token;
+    }
 
     async function pushAlarmsToBackground(alarms: ScheduledAlarm[]) {
       alarmsRef.current = alarms;
       saveCachedAlarms(alarms);
+      const token = await ensurePushToken();
       await syncAlarmsToServiceWorker(canUseNotifications() ? alarms : []);
+      if (hasFirebaseConfig) {
+        try {
+          await syncAlarmDispatch(uid, canUseNotifications() ? alarms : [], token);
+        } catch {
+          // Cloud dispatch is best-effort; local scheduling still runs.
+        }
+      }
     }
 
     async function syncAlarmsNow() {
@@ -117,6 +143,13 @@ export function AlarmEngine() {
         return;
       }
       await mergeFiredKeysFromServiceWorker();
+      if (hasFirebaseConfig) {
+        try {
+          await mergeFiredKeysFromAlarmJobs(uid);
+        } catch {
+          // Ignore cloud merge failures.
+        }
+      }
       if (canUseNotifications()) {
         await runAlarmSweep(alarms);
       }
@@ -149,13 +182,13 @@ export function AlarmEngine() {
     function flushOnExit() {
       const alarms = resolveAlarmsForFlush(alarmsRef.current);
       void flushAlarmScheduleToServiceWorker(canUseNotifications() ? alarms : []);
+      if (hasFirebaseConfig) {
+        void syncAlarmDispatch(uid, canUseNotifications() ? alarms : [], fcmTokenRef.current);
+      }
     }
 
     function onVisibility() {
       if (document.visibilityState === "visible") {
-        if (canUseNotifications()) {
-          runAlarmSweep(alarmsRef.current);
-        }
         void refresh();
         return;
       }
@@ -175,6 +208,9 @@ export function AlarmEngine() {
       if (event.data?.type === "ALARM_DISMISSED" && event.data.id && event.data.fireAt) {
         markAlarmFired(event.data.id, event.data.fireAt);
         stopAllAlarmAudio();
+        if (hasFirebaseConfig) {
+          void markAlarmJobDismissed(uid, event.data.id, event.data.fireAt);
+        }
       }
     }
 

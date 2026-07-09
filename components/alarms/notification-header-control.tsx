@@ -8,6 +8,7 @@ import {
   setAppNotificationsEnabled,
 } from "@/lib/alarms/notification-preference";
 import { registerBackgroundAlarmWake } from "@/lib/alarms/scheduler";
+import { ensureFcmToken } from "@/lib/firebase/messaging";
 import {
   ensureNotificationPermission,
   getNotificationPermissionState,
@@ -84,6 +85,7 @@ export function NotificationHeaderControl() {
         setAppNotificationsEnabled(true);
         setAppEnabled(true);
         notifyAlarmsChanged();
+        await ensureFcmToken();
         await registerBackgroundAlarmWake();
         await sendTestNotification();
         setTestSent(true);
@@ -111,6 +113,7 @@ export function NotificationHeaderControl() {
       setAppNotificationsEnabled(nextEnabled);
       setAppEnabled(nextEnabled);
       if (nextEnabled) {
+        await ensureFcmToken();
         await registerBackgroundAlarmWake();
       }
     } finally {
