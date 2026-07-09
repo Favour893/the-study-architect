@@ -8,7 +8,7 @@ import {
   buildPersonalTodoAlarms,
   mergeAlarms,
 } from "@/lib/alarms/build-alarms";
-import { playAlarmSound } from "@/lib/alarms/play-alarm-sound";
+import { playAlarmSound, stopAlarmSound } from "@/lib/alarms/play-alarm-sound";
 import {
   ALARM_CHECK_INTERVAL_MS,
   mergeFiredKeysFromServiceWorker,
@@ -154,8 +154,15 @@ export function AlarmEngine() {
       if (event.data?.type === "PLAY_ALARM_SOUND") {
         void playAlarmSound();
       }
+      if (event.data?.type === "STOP_ALARM_SOUND") {
+        stopAlarmSound();
+      }
       if (event.data?.type === "ALARM_FIRED" && event.data.id && event.data.fireAt) {
         markAlarmFired(event.data.id, event.data.fireAt);
+      }
+      if (event.data?.type === "ALARM_DISMISSED" && event.data.id && event.data.fireAt) {
+        markAlarmFired(event.data.id, event.data.fireAt);
+        stopAlarmSound();
       }
     }
 

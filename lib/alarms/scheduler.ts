@@ -1,5 +1,7 @@
+import { persistAlarmSchedule } from "./alarm-persist";
 import { hasAlarmFired, listFiredAlarmKeys, mergeFiredAlarmKeys } from "./fired-store";
-import { deliverAlarm } from "./notifications";
+import { areAppNotificationsEnabled } from "./notification-preference";
+import { deliverAlarm, hasNotificationPermission } from "./notifications";
 import type { ScheduledAlarm } from "./types";
 import { ALARM_CHECK_INTERVAL_MS } from "./types";
 const MAX_SET_TIMEOUT_MS = 2147483647;
@@ -80,7 +82,14 @@ export async function registerBackgroundAlarmWake() {
   }
 }
 
-export async function syncAlarmsToServiceWorker(alarms: ScheduledAlarm[]) {
+function notificationsEnabledForSync() {
+  return hasNotificationPermission() && areAppNotificationsEnabled();
+}
+
+async function postSyncToServiceWorker(
+  alarms: ScheduledAlarm[],
+  notificationsEnabled: boolean,
+): Promise<void> {
   if (!("serviceWorker" in navigator)) {
     return;
   }
@@ -89,12 +98,44 @@ export async function syncAlarmsToServiceWorker(alarms: ScheduledAlarm[]) {
   if (!target) {
     return;
   }
-  target.postMessage({
-    type: "SYNC_ALARMS",
-    alarms,
-    firedKeys: listFiredAlarmKeys(),
+
+  const firedKeys = listFiredAlarmKeys();
+  const channel = new MessageChannel();
+  const acknowledged = new Promise<void>((resolve) => {
+    const timeoutId = window.setTimeout(() => resolve(), 2500);
+    channel.port1.onmessage = () => {
+      window.clearTimeout(timeoutId);
+      resolve();
+    };
   });
-  await registerBackgroundAlarmWake();
+
+  target.postMessage(
+    {
+      type: "SYNC_ALARMS",
+      alarms,
+      firedKeys,
+      notificationsEnabled,
+    },
+    [channel.port2],
+  );
+  await acknowledged;
+}
+
+export async function syncAlarmsToServiceWorker(alarms: ScheduledAlarm[]) {
+  const notificationsEnabled = notificationsEnabledForSync();
+  const scheduledAlarms = notificationsEnabled ? alarms : [];
+  const firedKeys = listFiredAlarmKeys();
+
+  await persistAlarmSchedule({
+    pendingAlarms: scheduledAlarms,
+    firedAlarmKeys: firedKeys,
+    notificationsEnabled,
+  });
+
+  await postSyncToServiceWorker(scheduledAlarms, notificationsEnabled);
+  if (notificationsEnabled) {
+    await registerBackgroundAlarmWake();
+  }
 }
 
 export function runAlarmSweep(alarms: ScheduledAlarm[]) {

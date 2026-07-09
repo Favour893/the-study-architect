@@ -28,6 +28,15 @@ function beep(ctx: AudioContext, startOffset: number, frequency: number, duratio
 const CYCLE_DURATION_SEC = 1.5;
 const ALARM_CYCLES = 12;
 
+export function stopAlarmSound() {
+  activePlaybackId += 1;
+  const ctx = audioContext;
+  if (ctx && ctx.state !== "closed") {
+    void ctx.suspend();
+    void ctx.resume();
+  }
+}
+
 export async function playAlarmSound() {
   const ctx = getAudioContext();
   if (!ctx) {

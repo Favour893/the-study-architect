@@ -1,4 +1,4 @@
-const CACHE_NAME = "tsa-v6";
+const CACHE_NAME = "tsa-v7";
 const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html"];
 const ALARM_DB_NAME = "tsa-alarms-v1";
 const ALARM_STORE = "meta";
@@ -6,12 +6,16 @@ const ALARM_STATE_KEY = "state";
 const ALARM_CHECK_INTERVAL_MS = 60 * 1000;
 const ALARM_NEAR_WINDOW_MS = 15 * 60 * 1000;
 const ALARM_EXACT_WINDOW_MS = 15 * 1000;
+
 /** @type {ScheduledAlarm[]} */
 let pendingAlarms = [];
 /** @type {Set<string>} */
 const firedAlarmKeys = new Set();
 /** @type {number | null} */
 let alarmTimer = null;
+/** @type {number[]} */
+let pulseTimerIds = [];
+let notificationsEnabled = true;
 
 /**
  * @typedef {{ id: string; fireAt: string; title: string; body: string; href?: string }} ScheduledAlarm
@@ -29,7 +33,7 @@ function openAlarmDb() {
 }
 
 /**
- * @returns {Promise<{ pendingAlarms: ScheduledAlarm[]; firedAlarmKeys: string[] }>}
+ * @returns {Promise<{ pendingAlarms: ScheduledAlarm[]; firedAlarmKeys: string[]; notificationsEnabled: boolean }>}
  */
 async function readPersistedAlarmState() {
   try {
@@ -40,18 +44,19 @@ async function readPersistedAlarmState() {
       get.onsuccess = () => {
         const value = get.result;
         if (!value || typeof value !== "object") {
-          resolve({ pendingAlarms: [], firedAlarmKeys: [] });
+          resolve({ pendingAlarms: [], firedAlarmKeys: [], notificationsEnabled: true });
           return;
         }
         resolve({
           pendingAlarms: Array.isArray(value.pendingAlarms) ? value.pendingAlarms : [],
           firedAlarmKeys: Array.isArray(value.firedAlarmKeys) ? value.firedAlarmKeys : [],
+          notificationsEnabled: value.notificationsEnabled !== false,
         });
       };
       get.onerror = () => reject(get.error);
     });
   } catch {
-    return { pendingAlarms: [], firedAlarmKeys: [] };
+    return { pendingAlarms: [], firedAlarmKeys: [], notificationsEnabled: true };
   }
 }
 
@@ -64,6 +69,7 @@ async function persistAlarmState() {
         {
           pendingAlarms,
           firedAlarmKeys: [...firedAlarmKeys],
+          notificationsEnabled,
         },
         ALARM_STATE_KEY,
       );
@@ -78,6 +84,8 @@ async function persistAlarmState() {
 async function hydrateAlarmState() {
   const saved = await readPersistedAlarmState();
   pendingAlarms = saved.pendingAlarms;
+  notificationsEnabled = saved.notificationsEnabled;
+  firedAlarmKeys.clear();
   for (const key of saved.firedAlarmKeys) {
     firedAlarmKeys.add(key);
   }
@@ -159,9 +167,6 @@ function alarmKey(alarm) {
   return `${alarm.id}:${alarm.fireAt}`;
 }
 
-/**
- * @param {ScheduledAlarm} alarm
- */
 function notificationOptions(alarm, key, includeVibrate) {
   const options = {
     body: alarm.body,
@@ -170,7 +175,17 @@ function notificationOptions(alarm, key, includeVibrate) {
     badge: "/logo-mark.png",
     silent: false,
     requireInteraction: true,
-    data: { href: alarm.href || "/dashboard" },
+    renotify: true,
+    data: {
+      href: alarm.href || "/dashboard",
+      alarmId: alarm.id,
+      fireAt: alarm.fireAt,
+      alarmKey: key,
+    },
+    actions: [
+      { action: "dismiss", title: "Turn off" },
+      { action: "open", title: "Open app" },
+    ],
   };
   if (includeVibrate) {
     options.vibrate = [600, 200, 600, 200, 600, 200, 600, 200, 600];
@@ -184,24 +199,107 @@ async function showAlarmNotification(alarm, key) {
     return true;
   } catch {
     try {
-      await self.registration.showNotification(alarm.title, notificationOptions(alarm, key, false));
+      const fallback = notificationOptions(alarm, key, false);
+      delete fallback.actions;
+      await self.registration.showNotification(alarm.title, fallback);
       return true;
     } catch {
-      return false;
+      try {
+        await self.registration.showNotification(alarm.title, {
+          body: alarm.body,
+          tag: key,
+          icon: "/logo-mark.png",
+          silent: false,
+          requireInteraction: true,
+          data: {
+            href: alarm.href || "/dashboard",
+            alarmId: alarm.id,
+            fireAt: alarm.fireAt,
+            alarmKey: key,
+          },
+        });
+        return true;
+      } catch {
+        return false;
+      }
     }
   }
 }
 
+function cancelAlarmPulseTimers() {
+  for (const timerId of pulseTimerIds) {
+    clearTimeout(timerId);
+  }
+  pulseTimerIds = [];
+}
+
 function pulseAlarmSoundToClients() {
+  cancelAlarmPulseTimers();
   for (let pulse = 0; pulse < 5; pulse += 1) {
-    setTimeout(() => {
+    const timerId = setTimeout(() => {
       void self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((openClients) => {
         for (const client of openClients) {
           client.postMessage({ type: "PLAY_ALARM_SOUND" });
         }
       });
     }, pulse * 4000);
+    pulseTimerIds.push(timerId);
   }
+}
+
+function notifyClientsToStopAlarm(data) {
+  void self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((openClients) => {
+    for (const client of openClients) {
+      client.postMessage({ type: "STOP_ALARM_SOUND" });
+      if (data?.alarmId && data?.fireAt) {
+        client.postMessage({
+          type: "ALARM_DISMISSED",
+          id: data.alarmId,
+          fireAt: data.fireAt,
+        });
+      }
+    }
+  });
+}
+
+async function closeAlarmNotifications(data) {
+  const tag = data?.alarmKey || (data?.alarmId && data?.fireAt ? `${data.alarmId}:${data.fireAt}` : null);
+  if (!tag) {
+    return;
+  }
+  const notifications = await self.registration.getNotifications({ tag });
+  for (const notification of notifications) {
+    notification.close();
+  }
+}
+
+async function dismissAlarmNotification(data) {
+  cancelAlarmPulseTimers();
+  notifyClientsToStopAlarm(data);
+  await closeAlarmNotifications(data);
+
+  if (data?.alarmId && data?.fireAt) {
+    firedAlarmKeys.add(`${data.alarmId}:${data.fireAt}`);
+    await persistAlarmState();
+  }
+}
+
+async function focusOrOpenApp(href) {
+  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  for (const client of clients) {
+    if ("focus" in client) {
+      await client.focus();
+      if ("navigate" in client && typeof client.navigate === "function") {
+        try {
+          await client.navigate(href);
+        } catch {
+          // Ignore navigation errors on unsupported clients.
+        }
+      }
+      return;
+    }
+  }
+  await self.clients.openWindow(href);
 }
 
 /**
@@ -209,6 +307,10 @@ function pulseAlarmSoundToClients() {
  * @returns {Promise<boolean>}
  */
 async function fireAlarm(alarm) {
+  if (!notificationsEnabled) {
+    return false;
+  }
+
   const key = alarmKey(alarm);
   if (firedAlarmKeys.has(key)) {
     return true;
@@ -269,6 +371,10 @@ function scheduleNextAlarm() {
     alarmTimer = null;
   }
 
+  if (!notificationsEnabled) {
+    return;
+  }
+
   const now = Date.now();
   /** @type {number | null} */
   let earliestFutureDue = null;
@@ -300,6 +406,7 @@ function scheduleNextAlarm() {
     scheduleNextAlarm();
   }, delay);
 }
+
 self.addEventListener("message", (event) => {
   const data = event.data;
   if (!data || typeof data !== "object") {
@@ -308,6 +415,7 @@ self.addEventListener("message", (event) => {
 
   if (data.type === "SYNC_ALARMS" && Array.isArray(data.alarms)) {
     pendingAlarms = data.alarms;
+    notificationsEnabled = data.notificationsEnabled !== false;
     if (Array.isArray(data.firedKeys)) {
       for (const key of data.firedKeys) {
         if (typeof key === "string") {
@@ -315,8 +423,12 @@ self.addEventListener("message", (event) => {
         }
       }
     }
+    const replyPort = event.ports?.[0];
     const finalize = persistAlarmState().then(() => {
       scheduleNextAlarm();
+      if (replyPort) {
+        replyPort.postMessage({ ok: true });
+      }
     });
     if (typeof event.waitUntil === "function") {
       event.waitUntil(finalize);
@@ -325,6 +437,7 @@ self.addEventListener("message", (event) => {
     }
     return;
   }
+
   if (data.type === "GET_FIRED_KEYS") {
     const replyPort = event.ports?.[0];
     if (replyPort) {
@@ -341,19 +454,35 @@ self.addEventListener("message", (event) => {
       }
     });
   }
+
+  if (data.type === "DISMISS_ALARM" && data.alarmId && data.fireAt) {
+    void dismissAlarmNotification({
+      alarmId: data.alarmId,
+      fireAt: data.fireAt,
+      alarmKey: `${data.alarmId}:${data.fireAt}`,
+    });
+  }
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const href = event.notification.data?.href || "/dashboard";
+  const data = event.notification.data || {};
+  const action = event.action;
+
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if ("focus" in client) {
-          return client.focus();
-        }
+    (async () => {
+      await dismissAlarmNotification(data);
+      if (action === "open") {
+        await focusOrOpenApp(data.href || "/dashboard");
       }
-      return self.clients.openWindow(href);
-    }),
+    })(),
   );
+});
+
+self.addEventListener("notificationclose", (event) => {
+  const data = event.notification.data || {};
+  if (!data.alarmId || !data.fireAt) {
+    return;
+  }
+  event.waitUntil(dismissAlarmNotification(data));
 });

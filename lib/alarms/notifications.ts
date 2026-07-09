@@ -1,6 +1,6 @@
 import { hasAlarmFired, markAlarmFired } from "./fired-store";
 import { areAppNotificationsEnabled } from "./notification-preference";
-import { playAlarmSound } from "./play-alarm-sound";
+import { playAlarmSound, stopAlarmSound } from "./play-alarm-sound";
 import type { ScheduledAlarm } from "./types";
 const inFlightDeliveries = new Set<string>();
 
@@ -36,10 +36,18 @@ export function getNotificationPermissionState(): NotificationPermissionState {
 
 function pulseAlarmSound() {
   void playAlarmSound();
-  window.setTimeout(() => void playAlarmSound(), 4000);
-  window.setTimeout(() => void playAlarmSound(), 8000);
-  window.setTimeout(() => void playAlarmSound(), 12000);
-  window.setTimeout(() => void playAlarmSound(), 16000);
+  const timers = [
+    window.setTimeout(() => void playAlarmSound(), 4000),
+    window.setTimeout(() => void playAlarmSound(), 8000),
+    window.setTimeout(() => void playAlarmSound(), 12000),
+    window.setTimeout(() => void playAlarmSound(), 16000),
+  ];
+  return () => {
+    for (const timer of timers) {
+      window.clearTimeout(timer);
+    }
+    stopAlarmSound();
+  };
 }
 
 async function showViaServiceWorker(alarm: ScheduledAlarm): Promise<boolean> {
@@ -84,10 +92,11 @@ export async function deliverAlarm(alarm: ScheduledAlarm) {
   inFlightDeliveries.add(key);
 
   try {
-    pulseAlarmSound();
+    const stopPulse = pulseAlarmSound();
 
     const usedWorker = await showViaServiceWorker(alarm);
     if (usedWorker) {
+      stopPulse();
       return;
     }
 
@@ -98,6 +107,7 @@ export async function deliverAlarm(alarm: ScheduledAlarm) {
       silent: false,
       requireInteraction: true,
     });
+    stopPulse();
     markAlarmFired(alarm.id, alarm.fireAt);
   } finally {
     inFlightDeliveries.delete(key);

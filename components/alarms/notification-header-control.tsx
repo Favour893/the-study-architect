@@ -207,7 +207,7 @@ export function NotificationHeaderControl() {
                   <p className="text-sm font-medium text-app-fg">Notifications</p>
                   <p className="mt-0.5 text-xs text-app-subtle">
                     {appEnabled
-                      ? "Alarms ring on this device, even when the app is closed."
+                      ? "Alarms ring when the app is closed. Tap a notification to turn it off."
                       : "Alarms are paused on this device."}
                   </p>
                 </div>
