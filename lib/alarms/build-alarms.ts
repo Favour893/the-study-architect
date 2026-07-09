@@ -84,7 +84,7 @@ function localDateKey(date: Date) {
   return `${y}-${m}-${d}`;
 }
 
-export function buildClassAlarms(timetableRaw: string | null, now = new Date(), daysAhead = 7): ScheduledAlarm[] {
+export function buildClassAlarms(timetableRaw: string | null, now = new Date(), daysAhead = 30): ScheduledAlarm[] {
   if (!timetableRaw) {
     return [];
   }

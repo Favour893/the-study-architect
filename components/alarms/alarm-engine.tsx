@@ -11,6 +11,7 @@ import {
 import { playAlarmSound } from "@/lib/alarms/play-alarm-sound";
 import {
   ALARM_CHECK_INTERVAL_MS,
+  mergeFiredKeysFromServiceWorker,
   runAlarmSweep,
   scheduleAlarmTimers,
   syncAlarmsToServiceWorker,
@@ -60,12 +61,11 @@ export function AlarmEngine() {
       return mergeAlarms(personalTodoAlarms);
     }
 
-    let examStorage = hasFirebaseConfig
+    const localExamStorage = loadExamTimetableLocal(user.uid, activeSemesterId);
+    const cloudExamStorage = hasFirebaseConfig
       ? await fetchExamTimetableFromFirestore(user.uid, activeSemesterId)
       : null;
-    if (!examStorage) {
-      examStorage = loadExamTimetableLocal(user.uid, activeSemesterId);
-    }
+    const examStorage = localExamStorage ?? cloudExamStorage;
 
     const examAlarms = examStorage
       ? buildExamAlarms(activeSemesterId, examStorage.columns, examStorage.rows)
@@ -93,7 +93,8 @@ export function AlarmEngine() {
         return;
       }
       alarmsRef.current = alarms;
-      runAlarmSweep(alarms);
+      await mergeFiredKeysFromServiceWorker();
+      await runAlarmSweep(alarms);
       await syncAlarmsToServiceWorker(alarms);
       clearTimers();
       clearTimers = scheduleAlarmTimers(alarms, (alarm) => {

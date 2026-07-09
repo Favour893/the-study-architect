@@ -167,16 +167,23 @@ async function fireAlarm(alarm) {
   }
   firedAlarmKeys.add(key);
 
-  await self.registration.showNotification(alarm.title, {
-    body: alarm.body,
-    tag: key,
-    icon: "/logo-mark.png",
-    badge: "/logo-mark.png",
-    silent: false,
-    requireInteraction: true,
-    vibrate: [400, 120, 400, 120, 400, 120, 400],
-    data: { href: alarm.href || "/dashboard" },
-  });
+  try {
+    await self.registration.showNotification(alarm.title, {
+      body: alarm.body,
+      tag: key,
+      icon: "/logo-mark.png",
+      badge: "/logo-mark.png",
+      silent: false,
+      requireInteraction: true,
+      vibrate: [400, 120, 400, 120, 400, 120, 400],
+      data: { href: alarm.href || "/dashboard" },
+    });
+  } catch {
+    firedAlarmKeys.delete(key);
+    await persistAlarmState();
+    scheduleNextAlarm();
+    return;
+  }
 
   await persistAlarmState();
 
@@ -245,6 +252,14 @@ self.addEventListener("message", (event) => {
     void persistAlarmState().then(() => {
       scheduleNextAlarm();
     });
+    return;
+  }
+
+  if (data.type === "GET_FIRED_KEYS") {
+    const replyPort = event.ports?.[0];
+    if (replyPort) {
+      replyPort.postMessage({ firedKeys: [...firedAlarmKeys] });
+    }
     return;
   }
 

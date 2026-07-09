@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Bell, BellOff, CheckCircle2, Smartphone } from "lucide-react";
+import { notifyAlarmsChanged } from "@/lib/alarms/alarm-events";
 import {
   ensureNotificationPermission,
   getNotificationPermissionState,
@@ -55,12 +56,17 @@ export function NotificationHeaderControl() {
   const needsIosInstall = isIosDevice() && !isInstalledPwa();
 
   async function enableNotifications() {
+    if (needsIosInstall) {
+      setOpen(true);
+      return;
+    }
     setBusy(true);
     setTestSent(false);
     try {
       const allowed = await ensureNotificationPermission();
       setPermission(getNotificationPermissionState());
       if (allowed) {
+        notifyAlarmsChanged();
         await sendTestNotification();
         setTestSent(true);
         setOpen(true);
@@ -87,11 +93,15 @@ export function NotificationHeaderControl() {
         disabled={busy}
         onClick={() => void enableNotifications()}
         className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-400/50 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-900 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60 sm:px-3 sm:text-sm"
-        title="Enable notifications for alarms"
+        title={needsIosInstall ? "Install TSA to Home Screen first" : "Enable notifications for alarms"}
       >
-        <Bell className="h-4 w-4 shrink-0" />
-        <span className="hidden sm:inline">{busy ? "Checking…" : "Enable notifications"}</span>
-        <span className="sr-only sm:hidden">{busy ? "Checking…" : "Enable notifications"}</span>
+        {needsIosInstall ? <Smartphone className="h-4 w-4 shrink-0" /> : <Bell className="h-4 w-4 shrink-0" />}
+        <span className="hidden sm:inline">
+          {busy ? "Checking…" : needsIosInstall ? "Install app for alerts" : "Enable notifications"}
+        </span>
+        <span className="sr-only sm:hidden">
+          {busy ? "Checking…" : needsIosInstall ? "Install app for alerts" : "Enable notifications"}
+        </span>
       </button>
     );
   }

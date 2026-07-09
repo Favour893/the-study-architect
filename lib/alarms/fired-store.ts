@@ -32,3 +32,17 @@ export function listFiredAlarmKeys(): string[] {
   }
   return keys;
 }
+
+export function mergeFiredAlarmKeys(keys: string[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  for (const key of keys) {
+    const [alarmId, ...rest] = key.split(":");
+    const fireAt = rest.join(":");
+    if (!alarmId || !fireAt) {
+      continue;
+    }
+    markAlarmFired(alarmId, fireAt);
+  }
+}

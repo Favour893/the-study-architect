@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { createCourse, listCourses } from "@/lib/data/courses";
 import { notifyAlarmsChanged } from "@/lib/alarms/alarm-events";
+import { ensureNotificationPermission } from "@/lib/alarms/notifications";
 import { pickCourseAccent } from "@/lib/ui/accents";
 import { fetchTimetableFromFirestore, saveTimetableToFirestore } from "@/lib/data/timetable";
 import type { Course } from "@/lib/types/domain";
@@ -41,6 +42,7 @@ const inputClass = `${FORM_INPUT_ACCENT} px-2 py-1`;
 const defaultStartHour = DEFAULT_TIMETABLE_START_HOUR;
 const defaultEndHour = DEFAULT_TIMETABLE_END_HOUR;
 const NEW_COURSE_VALUE = "__new_course__";
+const CLASS_ALARM_PERMISSION_KEY = "tsa.class-alarms.permission-prompted";
 
 type Slot = {
   key: string;
@@ -131,6 +133,7 @@ export default function TimetablePage() {
   });
   const lastSyncedSignatureRef = useRef<string | null>(null);
   const skipNextCloudSaveRef = useRef(false);
+  const previousEntryCountRef = useRef(0);
 
   const slots = useMemo(() => buildSlots(startHour, endHour), [startHour, endHour]);
   /** Fixed grid: day column (7rem) + one 6rem column per hour so cells never grow with text. */
@@ -280,6 +283,28 @@ export default function TimetablePage() {
     pushToast,
     lastSyncedAt,
   ]);
+
+  useEffect(() => {
+    if (!user || !activeSemesterId) {
+      previousEntryCountRef.current = 0;
+      return;
+    }
+    const nextCount = Object.keys(entries).length;
+    const hadNoEntries = previousEntryCountRef.current === 0;
+    previousEntryCountRef.current = nextCount;
+    if (!hadNoEntries || nextCount === 0) {
+      return;
+    }
+    if (window.localStorage.getItem(CLASS_ALARM_PERMISSION_KEY) === "1") {
+      return;
+    }
+    window.localStorage.setItem(CLASS_ALARM_PERMISSION_KEY, "1");
+    void ensureNotificationPermission().then((allowed) => {
+      if (!allowed) {
+        pushToast("Enable notifications so class alarms can ring on your phone.", "info");
+      }
+    });
+  }, [entries, user, activeSemesterId, pushToast]);
 
   useEffect(() => {
     let isMounted = true;

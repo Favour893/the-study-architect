@@ -71,6 +71,31 @@ function fromDatetimeLocalValue(value: string): string | null {
   return date.toISOString();
 }
 
+function cellByKey(row: ExamTimetableRow, columns: ExamTimetableColumn[], key: string) {
+  const col = columns.find((item) => item.key === key);
+  return col ? row.cells[col.id] ?? "" : "";
+}
+
+function recommendedAlarmAt(row: ExamTimetableRow, columns: ExamTimetableColumn[]) {
+  const isoDate = toDateInputValue(cellByKey(row, columns, "exam_date"));
+  if (!isoDate) {
+    return null;
+  }
+  const timeValue = cellByKey(row, columns, "time");
+  const [year, month, day] = isoDate.split("-").map(Number);
+  if (!year || !month || !day) {
+    return null;
+  }
+  if (/^\d{2}:\d{2}$/.test(timeValue)) {
+    const [hour, minute] = timeValue.split(":").map(Number);
+    if (Number.isNaN(hour) || Number.isNaN(minute)) {
+      return null;
+    }
+    return new Date(year, month - 1, day, hour, minute).toISOString();
+  }
+  return new Date(year, month - 1, day, 9, 0).toISOString();
+}
+
 export function ExamTimetableSection({
   activeSemesterId,
   semesterLoading,
@@ -213,13 +238,20 @@ export function ExamTimetableSection({
   async function toggleRowAlarm(row: ExamTimetableRow) {
     const nextEnabled = !row.alarmEnabled;
     if (nextEnabled) {
+      const nextAlarmAt = row.alarmAt ?? recommendedAlarmAt(row, columns);
+      if (!nextAlarmAt) {
+        pushToast("Set exam date and time first so we can schedule the reminder.", "info");
+        return;
+      }
       const ok = await ensureNotificationPermission();
       if (!ok) {
         pushToast("Allow notifications in your browser to use exam alarms.", "info");
         return;
       }
+      updateRow(row.id, { alarmEnabled: true, alarmAt: nextAlarmAt });
+      return;
     }
-    updateRow(row.id, { alarmEnabled: nextEnabled });
+    updateRow(row.id, { alarmEnabled: false });
   }
 
   function renderCellInput(row: ExamTimetableRow, col: ExamTimetableColumn) {

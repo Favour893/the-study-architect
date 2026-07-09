@@ -1,4 +1,4 @@
-import { markAlarmFired } from "./fired-store";
+import { hasAlarmFired, markAlarmFired } from "./fired-store";
 import { playAlarmSound } from "./play-alarm-sound";
 import type { ScheduledAlarm } from "./types";
 
@@ -42,9 +42,13 @@ async function showViaServiceWorker(alarm: ScheduledAlarm): Promise<boolean> {
 }
 
 export async function deliverAlarm(alarm: ScheduledAlarm) {
+  if (hasAlarmFired(alarm.id, alarm.fireAt)) {
+    return;
+  }
   if (!canUseNotifications()) {
     return;
   }
+  markAlarmFired(alarm.id, alarm.fireAt);
 
   void playAlarmSound();
 
@@ -59,7 +63,6 @@ export async function deliverAlarm(alarm: ScheduledAlarm) {
     });
   }
 
-  markAlarmFired(alarm.id, alarm.fireAt);
 }
 
 export async function sendTestNotification(): Promise<boolean> {

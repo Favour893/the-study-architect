@@ -1,7 +1,8 @@
-import { hasAlarmFired, listFiredAlarmKeys } from "./fired-store";
+import { hasAlarmFired, listFiredAlarmKeys, mergeFiredAlarmKeys } from "./fired-store";
 import { deliverAlarm } from "./notifications";
 import type { ScheduledAlarm } from "./types";
 import { ALARM_CHECK_INTERVAL_MS } from "./types";
+const MAX_SET_TIMEOUT_MS = 2147483647;
 
 export function findDueAlarms(alarms: ScheduledAlarm[], nowMs = Date.now()): ScheduledAlarm[] {
   return alarms.filter((alarm) => {
@@ -30,13 +31,13 @@ export function scheduleAlarmTimers(
     }
     const delay = fireAtMs - nowMs;
     if (delay <= 0) {
-      onFire(alarm);
       continue;
     }
+    const safeDelay = Math.min(delay, MAX_SET_TIMEOUT_MS);
     timers.push(
       window.setTimeout(() => {
         onFire(alarm);
-      }, delay),
+      }, safeDelay),
     );
   }
 
@@ -64,8 +65,37 @@ export async function syncAlarmsToServiceWorker(alarms: ScheduledAlarm[]) {
 }
 
 export function runAlarmSweep(alarms: ScheduledAlarm[]) {
-  for (const alarm of findDueAlarms(alarms)) {
-    void deliverAlarm(alarm);
+  return (async () => {
+    for (const alarm of findDueAlarms(alarms)) {
+      await deliverAlarm(alarm);
+    }
+  })();
+}
+
+export async function mergeFiredKeysFromServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+  const registration = await navigator.serviceWorker.ready;
+  const target = registration.active ?? registration.waiting ?? registration.installing;
+  if (!target) {
+    return;
+  }
+  const channel = new MessageChannel();
+  const responsePromise = new Promise<string[]>((resolve) => {
+    const timeoutId = window.setTimeout(() => resolve([]), 1500);
+    channel.port1.onmessage = (event) => {
+      window.clearTimeout(timeoutId);
+      const keys = Array.isArray(event.data?.firedKeys)
+        ? event.data.firedKeys.filter((key: unknown): key is string => typeof key === "string")
+        : [];
+      resolve(keys);
+    };
+  });
+  target.postMessage({ type: "GET_FIRED_KEYS" }, [channel.port2]);
+  const firedKeys = await responsePromise;
+  if (firedKeys.length > 0) {
+    mergeFiredAlarmKeys(firedKeys);
   }
 }
 
