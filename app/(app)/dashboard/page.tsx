@@ -13,6 +13,7 @@ import { pickPulseHeadline, upcomingWithinDays, type PulseFeedItem } from "@/lib
 import { rankMissionTopics, resolveTopicStage } from "@/lib/pulse/study-mission";
 import { TIMETABLE_LEGACY_STORAGE_KEY, timetableStorageKeyForUserSemester } from "@/lib/timetable-storage";
 import {
+  ShimmerButton,
   ShimmerList,
   ShimmerPanel,
 } from "@/components/ui/shimmer";
@@ -460,23 +461,25 @@ export default function DashboardPage() {
 
         <div className="mt-5 space-y-2 border-t border-app-border pt-5" data-page-guide="pulse-ai">
           <p className="text-sm text-app-subtle">AI study nudge</p>
-          <button
+          <ShimmerButton
             type="button"
-            disabled={aiLoading}
+            loading={aiLoading}
+            loadingLabel="Thinking…"
             onClick={() => void requestAiStudyHint()}
             className="rounded-lg bg-gradient-to-r from-app-accent to-app-violet px-4 py-2 text-sm font-medium text-white shadow-sm shadow-violet-500/20 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {aiLoading ? "Thinking…" : "Get a tailored next step"}
-          </button>
+            Get a tailored next step
+          </ShimmerButton>
           {studyMission ? (
-            <button
+            <ShimmerButton
               type="button"
-              disabled={aiLoading}
+              loading={aiLoading}
+              loadingLabel="Regenerating…"
               onClick={() => void requestAiStudyHint()}
               className="ml-2 rounded-lg border border-app-accent/30 bg-app-accent-soft px-4 py-2 text-sm font-medium text-app-accent transition hover:bg-app-accent-light disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {aiLoading ? "Regenerating…" : "Regenerate"}
-            </button>
+              Regenerate
+            </ShimmerButton>
           ) : null}
           {aiError ? <p className="text-sm text-red-700">{aiError}</p> : null}
           {missionTopics.length > 0 ? (

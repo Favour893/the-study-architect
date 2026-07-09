@@ -12,6 +12,7 @@ import { pickSemesterAccent } from "@/lib/ui/accents";
 import { useAuth } from "@/providers/auth-provider";
 import { useSemester } from "@/providers/semester-provider";
 import { useToast } from "@/providers/toast-provider";
+import { ShimmerButton } from "@/components/ui/shimmer";
 
 const inputClass =
   "w-full rounded-lg border border-app-border bg-app-accent-soft/40 px-3 py-2 text-app-fg outline-none ring-app-accent transition focus:bg-panel focus:ring-2";
@@ -221,14 +222,16 @@ export function NewSemesterForm() {
                             Switch
                           </button>
                         )}
-                        <button
+                        <ShimmerButton
                           type="button"
-                          disabled={isBusy || disableArchive}
+                          loading={isBusy}
+                          loadingLabel="Saving..."
+                          disabled={disableArchive}
                           onClick={() => void handleToggleArchive(sem.id, !sem.isArchived)}
                           className="rounded-md border border-amber-300/60 bg-app-amber-soft px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-amber-300"
                         >
-                          {isBusy ? "Saving..." : sem.isArchived ? "Unarchive" : "Archive"}
-                        </button>
+                          {sem.isArchived ? "Unarchive" : "Archive"}
+                        </ShimmerButton>
                       </div>
                     </div>
 
@@ -264,13 +267,14 @@ export function NewSemesterForm() {
                             className={`${inputClass} w-full`}
                           />
                         </label>
-                        <button
+                        <ShimmerButton
                           type="submit"
-                          disabled={isBusy}
+                          loading={isBusy}
+                          loadingLabel="Saving..."
                           className="rounded-md bg-gradient-to-r from-app-accent to-app-violet px-3 py-2 text-sm font-medium text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                         >
-                          {isBusy ? "Saving..." : "Save changes"}
-                        </button>
+                          Save changes
+                        </ShimmerButton>
                       </form>
                     ) : null}
                   </div>
@@ -359,14 +363,20 @@ export function NewSemesterForm() {
 
             {error ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p> : null}
 
-            <button
+            <ShimmerButton
               type="submit"
-              disabled={isSubmitting}
+              loading={isSubmitting}
+              loadingLabel={
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Creating semester…
+                </>
+              }
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-600 to-app-accent px-4 py-2.5 text-sm font-medium text-white shadow-sm shadow-emerald-600/20 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Sparkles className="h-4 w-4" />
-              {isSubmitting ? "Creating semester…" : "Create semester & switch to it"}
-            </button>
+              Create semester & switch to it
+            </ShimmerButton>
           </form>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 type ShimmerProps = {
   className?: string;
@@ -180,4 +180,29 @@ export function ShimmerAuthPage() {
 
 export function ShimmerPage({ children, className }: { children?: ReactNode; className?: string }) {
   return <div className={joinClasses("space-y-5", className)}>{children}</div>;
+}
+
+type ShimmerButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  loading?: boolean;
+  loadingLabel?: ReactNode;
+};
+
+export function ShimmerButton({
+  loading = false,
+  loadingLabel,
+  children,
+  className,
+  disabled,
+  ...props
+}: ShimmerButtonProps) {
+  return (
+    <button
+      {...props}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={joinClasses(className, loading && "tsa-shimmer-btn")}
+    >
+      {loading && loadingLabel !== undefined ? loadingLabel : children}
+    </button>
+  );
 }

@@ -8,6 +8,7 @@ import {
   setAppNotificationsEnabled,
 } from "@/lib/alarms/notification-preference";
 import { registerBackgroundAlarmWake } from "@/lib/alarms/scheduler";
+import { ShimmerButton } from "@/components/ui/shimmer";
 import { ensureFcmToken } from "@/lib/firebase/messaging";
 import {
   ensureNotificationPermission,
@@ -134,21 +135,22 @@ export function NotificationHeaderControl() {
   if (permission === "default") {
     return (
       <div className="relative shrink-0" ref={wrapRef}>
-        <button
+        <ShimmerButton
           type="button"
-          disabled={busy}
+          loading={busy}
+          loadingLabel="Checking…"
           onClick={() => void enableNotifications()}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-400/50 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-900 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60 sm:px-3 sm:text-sm"
           title={needsIosInstall ? "Install TSA to Home Screen first" : "Enable notifications for alarms"}
         >
           {needsIosInstall ? <Smartphone className="h-4 w-4 shrink-0" /> : <Bell className="h-4 w-4 shrink-0" />}
           <span className="hidden sm:inline">
-            {busy ? "Checking…" : needsIosInstall ? "Install app for alerts" : "Enable notifications"}
+            {needsIosInstall ? "Install app for alerts" : "Enable notifications"}
           </span>
           <span className="sr-only sm:hidden">
-            {busy ? "Checking…" : needsIosInstall ? "Install app for alerts" : "Enable notifications"}
+            {needsIosInstall ? "Install app for alerts" : "Enable notifications"}
           </span>
-        </button>
+        </ShimmerButton>
         {open && needsIosInstall ? (
           <div className="absolute right-0 top-full z-50 mt-1.5 w-[min(100vw-1.5rem,18rem)] rounded-xl border border-app-border bg-panel p-3 shadow-lg">
             <p className="text-sm font-medium text-app-fg">Install TSA for iPhone alerts</p>
@@ -199,9 +201,9 @@ export function NotificationHeaderControl() {
         <div className="absolute right-0 top-full z-50 mt-1.5 w-[min(100vw-1.5rem,18rem)] rounded-xl border border-app-border bg-panel p-3 shadow-lg">
           {permission === "granted" ? (
             <>
-              <button
+              <ShimmerButton
                 type="button"
-                disabled={busy}
+                loading={busy}
                 onClick={() => void toggleNotifications()}
                 className="flex w-full items-center justify-between gap-3 rounded-lg border border-app-border bg-app-muted px-3 py-2.5 text-left transition hover:bg-app-accent-soft disabled:opacity-60"
                 aria-pressed={appEnabled}
@@ -226,7 +228,7 @@ export function NotificationHeaderControl() {
                     }`}
                   />
                 </span>
-              </button>
+              </ShimmerButton>
 
               {appEnabled ? (
                 <>
@@ -238,14 +240,15 @@ export function NotificationHeaderControl() {
                       </p>
                     </div>
                   ) : null}
-                  <button
+                  <ShimmerButton
                     type="button"
-                    disabled={busy}
+                    loading={busy}
+                    loadingLabel="Sending…"
                     onClick={() => void sendTest()}
                     className="mt-3 w-full rounded-lg border border-app-border bg-panel px-3 py-1.5 text-xs font-medium text-app-fg hover:bg-app-muted disabled:opacity-60"
                   >
-                    {busy ? "Sending…" : "Send test notification"}
-                  </button>
+                    Send test notification
+                  </ShimmerButton>
                 </>
               ) : null}
             </>

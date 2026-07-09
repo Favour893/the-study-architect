@@ -12,6 +12,7 @@ import {
   FORM_SHELL_BODY_CLASS,
   FORM_SHELL_CLASS,
 } from "@/lib/ui/form-styles";
+import { ShimmerButton } from "@/components/ui/shimmer";
 
 type CourseFormProps = {
   onCreate: (payload: {
@@ -80,9 +81,14 @@ export function CourseForm({ onCreate, onValidationError }: CourseFormProps) {
           placeholder="Lecturer name"
           className={FORM_INPUT_INFO}
         />
-        <button type="submit" disabled={isSubmitting} className={FORM_PRIMARY_BUTTON_CLASS}>
-          {isSubmitting ? "Adding..." : "Create course"}
-        </button>
+        <ShimmerButton
+          type="submit"
+          loading={isSubmitting}
+          loadingLabel="Adding..."
+          className={FORM_PRIMARY_BUTTON_CLASS}
+        >
+          Create course
+        </ShimmerButton>
       </div>
     </form>
   );

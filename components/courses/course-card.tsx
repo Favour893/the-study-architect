@@ -8,6 +8,7 @@ import {
   FORM_PRIMARY_BUTTON_CLASS,
   FORM_SECONDARY_BUTTON_CLASS,
 } from "@/lib/ui/form-styles";
+import { ShimmerButton } from "@/components/ui/shimmer";
 import type { Course } from "@/lib/types/domain";
 
 type CourseCardProps = {
@@ -134,9 +135,14 @@ export function CourseCard({
             <button type="button" onClick={handleCancel} className={FORM_SECONDARY_BUTTON_CLASS}>
               Cancel
             </button>
-            <button type="submit" disabled={isSaving} className={FORM_PRIMARY_BUTTON_CLASS}>
-              {isSaving ? "Saving..." : "Save"}
-            </button>
+            <ShimmerButton
+              type="submit"
+              loading={isSaving}
+              loadingLabel="Saving..."
+              className={FORM_PRIMARY_BUTTON_CLASS}
+            >
+              Save
+            </ShimmerButton>
           </div>
         </form>
       ) : null}

@@ -7,6 +7,7 @@ import { completeOnboarding } from "@/lib/data/semesters";
 import type { GradeMode } from "@/lib/types/domain";
 import { useAuth } from "@/providers/auth-provider";
 import { useToast } from "@/providers/toast-provider";
+import { ShimmerButton } from "@/components/ui/shimmer";
 
 type DraftCourse = {
   title: string;
@@ -205,14 +206,20 @@ export function SemesterOnboarding() {
             </p>
           ) : null}
 
-          <button
+          <ShimmerButton
             type="submit"
-            disabled={isSubmitting}
+            loading={isSubmitting}
+            loadingLabel={
+              <>
+                <Sparkles className="h-4 w-4" />
+                Saving semester...
+              </>
+            }
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-app-accent via-app-violet to-emerald-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm shadow-violet-500/20 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Sparkles className="h-4 w-4" />
-            {isSubmitting ? "Saving semester..." : "Start this semester"}
-          </button>
+            Start this semester
+          </ShimmerButton>
         </form>
       </div>
     </section>

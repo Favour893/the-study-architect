@@ -7,6 +7,7 @@ import { createAccountWithEmail, signInWithEmail, signInWithGoogle } from "@/lib
 import { getFirebaseConfigStatus, hasFirebaseConfig } from "@/lib/firebase/client";
 
 import { humanizeAuthError } from "@/lib/firebase/auth-errors";
+import { ShimmerButton } from "@/components/ui/shimmer";
 
 type AuthMode = "sign-in" | "create-account";
 
@@ -122,29 +123,29 @@ export function AuthForm({ initialError = null }: AuthFormProps) {
           <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         ) : null}
 
-        <button
+        <ShimmerButton
           type="submit"
-          disabled={isSubmitting || !hasFirebaseConfig}
+          loading={isSubmitting}
+          loadingLabel="Please wait..."
+          disabled={!hasFirebaseConfig}
           className="w-full rounded-lg bg-app-accent px-3 py-2.5 text-sm font-medium text-white shadow-sm shadow-blue-600/25 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isSubmitting
-            ? "Please wait..."
-            : mode === "create-account"
-              ? "Create TSA account"
-              : "Sign in"}
-        </button>
+          {mode === "create-account" ? "Create TSA account" : "Sign in"}
+        </ShimmerButton>
       </form>
 
       <div className="my-4 h-px bg-app-border" />
 
-      <button
+      <ShimmerButton
         type="button"
         onClick={handleGoogle}
-        disabled={isSubmitting || !hasFirebaseConfig}
+        loading={isSubmitting}
+        loadingLabel="Opening Google sign-in..."
+        disabled={!hasFirebaseConfig}
         className="w-full rounded-lg border border-app-border bg-panel px-3 py-2.5 text-sm font-medium text-app-fg transition hover:bg-app-accent-soft disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {isSubmitting ? "Opening Google sign-in..." : "Continue with Google"}
-      </button>
+        Continue with Google
+      </ShimmerButton>
     </div>
   );
 }
