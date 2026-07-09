@@ -1,6 +1,7 @@
 import { hasAlarmFired, markAlarmFired } from "./fired-store";
 import { playAlarmSound } from "./play-alarm-sound";
 import type { ScheduledAlarm } from "./types";
+const inFlightDeliveries = new Set<string>();
 
 export async function ensureNotificationPermission(): Promise<boolean> {
   if (typeof window === "undefined" || !("Notification" in window)) {
@@ -32,7 +33,13 @@ async function showViaServiceWorker(alarm: ScheduledAlarm): Promise<boolean> {
   if (!("serviceWorker" in navigator)) {
     return false;
   }
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 1500)),
+  ]);
+  if (!registration) {
+    return false;
+  }
   const target = registration.active ?? registration.waiting ?? registration.installing;
   if (!target) {
     return false;
@@ -42,27 +49,39 @@ async function showViaServiceWorker(alarm: ScheduledAlarm): Promise<boolean> {
 }
 
 export async function deliverAlarm(alarm: ScheduledAlarm) {
+  const key = `${alarm.id}:${alarm.fireAt}`;
+  if (inFlightDeliveries.has(key)) {
+    return;
+  }
   if (hasAlarmFired(alarm.id, alarm.fireAt)) {
     return;
   }
   if (!canUseNotifications()) {
     return;
   }
-  markAlarmFired(alarm.id, alarm.fireAt);
+  inFlightDeliveries.add(key);
 
-  void playAlarmSound();
+  try {
+    void playAlarmSound();
+    window.setTimeout(() => void playAlarmSound(), 4000);
+    window.setTimeout(() => void playAlarmSound(), 8000);
+    window.setTimeout(() => void playAlarmSound(), 12000);
+    window.setTimeout(() => void playAlarmSound(), 16000);
 
-  const usedWorker = await showViaServiceWorker(alarm);
-  if (!usedWorker) {
-    new Notification(alarm.title, {
-      body: alarm.body,
-      tag: `${alarm.id}:${alarm.fireAt}`,
-      icon: "/logo-mark.png",
-      silent: false,
-      requireInteraction: true,
-    });
+    const usedWorker = await showViaServiceWorker(alarm);
+    if (!usedWorker) {
+      new Notification(alarm.title, {
+        body: alarm.body,
+        tag: `${alarm.id}:${alarm.fireAt}`,
+        icon: "/logo-mark.png",
+        silent: false,
+        requireInteraction: true,
+      });
+    }
+    markAlarmFired(alarm.id, alarm.fireAt);
+  } finally {
+    inFlightDeliveries.delete(key);
   }
-
 }
 
 export async function sendTestNotification(): Promise<boolean> {

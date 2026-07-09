@@ -175,7 +175,7 @@ async function fireAlarm(alarm) {
       badge: "/logo-mark.png",
       silent: false,
       requireInteraction: true,
-      vibrate: [400, 120, 400, 120, 400, 120, 400],
+      vibrate: [600, 200, 600, 200, 600, 200, 600, 200, 600, 200, 600, 200, 600],
       data: { href: alarm.href || "/dashboard" },
     });
   } catch {
@@ -189,8 +189,16 @@ async function fireAlarm(alarm) {
 
   const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
   for (const client of clients) {
-    client.postMessage({ type: "PLAY_ALARM_SOUND" });
     client.postMessage({ type: "ALARM_FIRED", id: alarm.id, fireAt: alarm.fireAt });
+  }
+  for (let pulse = 0; pulse < 5; pulse += 1) {
+    setTimeout(() => {
+      void self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((openClients) => {
+        for (const client of openClients) {
+          client.postMessage({ type: "PLAY_ALARM_SOUND" });
+        }
+      });
+    }, pulse * 4000);
   }
 
   scheduleNextAlarm();

@@ -1,4 +1,5 @@
 let audioContext: AudioContext | null = null;
+let activePlaybackId = 0;
 
 function getAudioContext() {
   if (typeof window === "undefined") {
@@ -16,13 +17,16 @@ function beep(ctx: AudioContext, startOffset: number, frequency: number, duratio
   oscillator.type = "square";
   oscillator.frequency.value = frequency;
   gain.gain.setValueAtTime(0.0001, ctx.currentTime + startOffset);
-  gain.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + startOffset + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + startOffset + 0.02);
   gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + startOffset + duration);
   oscillator.connect(gain);
   gain.connect(ctx.destination);
   oscillator.start(ctx.currentTime + startOffset);
   oscillator.stop(ctx.currentTime + startOffset + duration + 0.05);
 }
+
+const CYCLE_DURATION_SEC = 1.5;
+const ALARM_CYCLES = 12;
 
 export async function playAlarmSound() {
   const ctx = getAudioContext();
@@ -32,8 +36,17 @@ export async function playAlarmSound() {
   if (ctx.state === "suspended") {
     await ctx.resume();
   }
-  beep(ctx, 0, 880, 0.25);
-  beep(ctx, 0.35, 988, 0.25);
-  beep(ctx, 0.7, 880, 0.25);
-  beep(ctx, 1.05, 988, 0.35);
+
+  const playbackId = ++activePlaybackId;
+
+  for (let cycle = 0; cycle < ALARM_CYCLES; cycle += 1) {
+    if (playbackId !== activePlaybackId) {
+      return;
+    }
+    const base = cycle * CYCLE_DURATION_SEC;
+    beep(ctx, base, 880, 0.35);
+    beep(ctx, base + 0.38, 988, 0.35);
+    beep(ctx, base + 0.76, 880, 0.35);
+    beep(ctx, base + 1.14, 988, 0.45);
+  }
 }

@@ -88,21 +88,31 @@ export function NotificationHeaderControl() {
 
   if (permission === "default") {
     return (
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => void enableNotifications()}
-        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-400/50 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-900 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60 sm:px-3 sm:text-sm"
-        title={needsIosInstall ? "Install TSA to Home Screen first" : "Enable notifications for alarms"}
-      >
-        {needsIosInstall ? <Smartphone className="h-4 w-4 shrink-0" /> : <Bell className="h-4 w-4 shrink-0" />}
-        <span className="hidden sm:inline">
-          {busy ? "Checking…" : needsIosInstall ? "Install app for alerts" : "Enable notifications"}
-        </span>
-        <span className="sr-only sm:hidden">
-          {busy ? "Checking…" : needsIosInstall ? "Install app for alerts" : "Enable notifications"}
-        </span>
-      </button>
+      <div className="relative shrink-0" ref={wrapRef}>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void enableNotifications()}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-400/50 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-900 transition hover:bg-amber-100 disabled:opacity-60 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60 sm:px-3 sm:text-sm"
+          title={needsIosInstall ? "Install TSA to Home Screen first" : "Enable notifications for alarms"}
+        >
+          {needsIosInstall ? <Smartphone className="h-4 w-4 shrink-0" /> : <Bell className="h-4 w-4 shrink-0" />}
+          <span className="hidden sm:inline">
+            {busy ? "Checking…" : needsIosInstall ? "Install app for alerts" : "Enable notifications"}
+          </span>
+          <span className="sr-only sm:hidden">
+            {busy ? "Checking…" : needsIosInstall ? "Install app for alerts" : "Enable notifications"}
+          </span>
+        </button>
+        {open && needsIosInstall ? (
+          <div className="absolute right-0 top-full z-50 mt-1.5 w-[min(100vw-1.5rem,18rem)] rounded-xl border border-app-border bg-panel p-3 shadow-lg">
+            <p className="text-sm font-medium text-app-fg">Install TSA for iPhone alerts</p>
+            <p className="mt-1 text-xs text-app-subtle">
+              On iPhone, add TSA to your Home Screen first, then enable notifications from inside the installed app.
+            </p>
+          </div>
+        ) : null}
+      </div>
     );
   }
 
