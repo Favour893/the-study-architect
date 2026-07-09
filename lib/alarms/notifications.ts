@@ -1,4 +1,5 @@
 import { hasAlarmFired, markAlarmFired } from "./fired-store";
+import { areAppNotificationsEnabled } from "./notification-preference";
 import { playAlarmSound } from "./play-alarm-sound";
 import type { ScheduledAlarm } from "./types";
 const inFlightDeliveries = new Set<string>();
@@ -16,8 +17,12 @@ export async function ensureNotificationPermission(): Promise<boolean> {
   return (await Notification.requestPermission()) === "granted";
 }
 
-export function canUseNotifications() {
+export function hasNotificationPermission() {
   return typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted";
+}
+
+export function canUseNotifications() {
+  return hasNotificationPermission() && areAppNotificationsEnabled();
 }
 
 export type NotificationPermissionState = "unsupported" | "granted" | "denied" | "default";
@@ -27,6 +32,14 @@ export function getNotificationPermissionState(): NotificationPermissionState {
     return "unsupported";
   }
   return Notification.permission;
+}
+
+function pulseAlarmSound() {
+  void playAlarmSound();
+  window.setTimeout(() => void playAlarmSound(), 4000);
+  window.setTimeout(() => void playAlarmSound(), 8000);
+  window.setTimeout(() => void playAlarmSound(), 12000);
+  window.setTimeout(() => void playAlarmSound(), 16000);
 }
 
 async function showViaServiceWorker(alarm: ScheduledAlarm): Promise<boolean> {
@@ -44,8 +57,17 @@ async function showViaServiceWorker(alarm: ScheduledAlarm): Promise<boolean> {
   if (!target) {
     return false;
   }
-  target.postMessage({ type: "SHOW_ALARM", alarm });
-  return true;
+
+  const channel = new MessageChannel();
+  const acknowledged = new Promise<boolean>((resolve) => {
+    const timeoutId = window.setTimeout(() => resolve(false), 3000);
+    channel.port1.onmessage = (event) => {
+      window.clearTimeout(timeoutId);
+      resolve(event.data?.ok === true);
+    };
+  });
+  target.postMessage({ type: "SHOW_ALARM", alarm }, [channel.port2]);
+  return acknowledged;
 }
 
 export async function deliverAlarm(alarm: ScheduledAlarm) {
@@ -62,22 +84,20 @@ export async function deliverAlarm(alarm: ScheduledAlarm) {
   inFlightDeliveries.add(key);
 
   try {
-    void playAlarmSound();
-    window.setTimeout(() => void playAlarmSound(), 4000);
-    window.setTimeout(() => void playAlarmSound(), 8000);
-    window.setTimeout(() => void playAlarmSound(), 12000);
-    window.setTimeout(() => void playAlarmSound(), 16000);
+    pulseAlarmSound();
 
     const usedWorker = await showViaServiceWorker(alarm);
-    if (!usedWorker) {
-      new Notification(alarm.title, {
-        body: alarm.body,
-        tag: `${alarm.id}:${alarm.fireAt}`,
-        icon: "/logo-mark.png",
-        silent: false,
-        requireInteraction: true,
-      });
+    if (usedWorker) {
+      return;
     }
+
+    new Notification(alarm.title, {
+      body: alarm.body,
+      tag: `${alarm.id}:${alarm.fireAt}`,
+      icon: "/logo-mark.png",
+      silent: false,
+      requireInteraction: true,
+    });
     markAlarmFired(alarm.id, alarm.fireAt);
   } finally {
     inFlightDeliveries.delete(key);
@@ -86,7 +106,7 @@ export async function deliverAlarm(alarm: ScheduledAlarm) {
 
 export async function sendTestNotification(): Promise<boolean> {
   const allowed = await ensureNotificationPermission();
-  if (!allowed) {
+  if (!allowed || !canUseNotifications()) {
     return false;
   }
 
@@ -98,6 +118,8 @@ export async function sendTestNotification(): Promise<boolean> {
     href: "/dashboard",
   };
 
+  pulseAlarmSound();
+
   const usedWorker = await showViaServiceWorker(testAlarm);
   if (!usedWorker) {
     new Notification(testAlarm.title, {
@@ -105,6 +127,7 @@ export async function sendTestNotification(): Promise<boolean> {
       tag: "tsa:test-notification",
       icon: "/logo-mark.png",
       silent: false,
+      requireInteraction: true,
     });
   }
 

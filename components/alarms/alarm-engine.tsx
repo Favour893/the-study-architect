@@ -12,12 +12,13 @@ import { playAlarmSound } from "@/lib/alarms/play-alarm-sound";
 import {
   ALARM_CHECK_INTERVAL_MS,
   mergeFiredKeysFromServiceWorker,
+  registerBackgroundAlarmWake,
   runAlarmSweep,
   scheduleAlarmTimers,
   syncAlarmsToServiceWorker,
 } from "@/lib/alarms/scheduler";
 import { markAlarmFired } from "@/lib/alarms/fired-store";
-import { deliverAlarm } from "@/lib/alarms/notifications";
+import { deliverAlarm, canUseNotifications } from "@/lib/alarms/notifications";
 import type { ScheduledAlarm } from "@/lib/alarms/types";
 import { fetchExamTimetableFromFirestore } from "@/lib/data/exam-timetable";
 import { getPersonalLog } from "@/lib/data/personal-log";
@@ -94,8 +95,10 @@ export function AlarmEngine() {
       }
       alarmsRef.current = alarms;
       await mergeFiredKeysFromServiceWorker();
-      await runAlarmSweep(alarms);
-      await syncAlarmsToServiceWorker(alarms);
+      if (canUseNotifications()) {
+        await runAlarmSweep(alarms);
+      }
+      await syncAlarmsToServiceWorker(canUseNotifications() ? alarms : []);
       clearTimers();
       clearTimers = scheduleAlarmTimers(alarms, (alarm) => {
         void deliverAlarm(alarm);
@@ -120,11 +123,31 @@ export function AlarmEngine() {
       void refresh();
     }
 
+    async function flushAlarmsToServiceWorker() {
+      const alarms = await loadAlarms();
+      if (cancelled) {
+        return;
+      }
+      alarmsRef.current = alarms;
+      await syncAlarmsToServiceWorker(canUseNotifications() ? alarms : []);
+      if (canUseNotifications()) {
+        await registerBackgroundAlarmWake();
+      }
+    }
+
     function onVisibility() {
       if (document.visibilityState === "visible") {
-        runAlarmSweep(alarmsRef.current);
+        if (canUseNotifications()) {
+          runAlarmSweep(alarmsRef.current);
+        }
         void refresh();
+        return;
       }
+      void flushAlarmsToServiceWorker();
+    }
+
+    function onPageHide() {
+      void flushAlarmsToServiceWorker();
     }
 
     function onServiceWorkerMessage(event: MessageEvent) {
@@ -139,6 +162,7 @@ export function AlarmEngine() {
     window.addEventListener("storage", onStorage);
     window.addEventListener(ALARMS_CHANGED_EVENT, onAlarmsChanged);
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onPageHide);
     navigator.serviceWorker?.addEventListener("message", onServiceWorkerMessage);
 
     return () => {
@@ -148,6 +172,7 @@ export function AlarmEngine() {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener(ALARMS_CHANGED_EVENT, onAlarmsChanged);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHide);
       navigator.serviceWorker?.removeEventListener("message", onServiceWorkerMessage);
     };
   }, [user, activeSemesterId, semesterLoading, loadAlarms]);

@@ -4,6 +4,11 @@ import type { ScheduledAlarm } from "./types";
 import { ALARM_CHECK_INTERVAL_MS } from "./types";
 const MAX_SET_TIMEOUT_MS = 2147483647;
 
+type BackgroundSyncRegistration = ServiceWorkerRegistration & {
+  sync?: { register: (tag: string) => Promise<void> };
+  periodicSync?: { register: (tag: string, options: { minInterval: number }) => Promise<void> };
+};
+
 export function findDueAlarms(alarms: ScheduledAlarm[], nowMs = Date.now()): ScheduledAlarm[] {
   return alarms.filter((alarm) => {
     const fireAtMs = new Date(alarm.fireAt).getTime();
@@ -48,6 +53,33 @@ export function scheduleAlarmTimers(
   };
 }
 
+export async function registerBackgroundAlarmWake() {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+  try {
+    const registration = (await navigator.serviceWorker.ready) as BackgroundSyncRegistration;
+    if (registration.sync) {
+      try {
+        await registration.sync.register("alarm-sync");
+      } catch {
+        // Unsupported or quota exceeded.
+      }
+    }
+    if (registration.periodicSync) {
+      try {
+        await registration.periodicSync.register("alarm-check", {
+          minInterval: 12 * 60 * 60 * 1000,
+        });
+      } catch {
+        // Requires installed PWA and permission on supported browsers.
+      }
+    }
+  } catch {
+    // Service worker not ready.
+  }
+}
+
 export async function syncAlarmsToServiceWorker(alarms: ScheduledAlarm[]) {
   if (!("serviceWorker" in navigator)) {
     return;
@@ -62,6 +94,7 @@ export async function syncAlarmsToServiceWorker(alarms: ScheduledAlarm[]) {
     alarms,
     firedKeys: listFiredAlarmKeys(),
   });
+  await registerBackgroundAlarmWake();
 }
 
 export function runAlarmSweep(alarms: ScheduledAlarm[]) {

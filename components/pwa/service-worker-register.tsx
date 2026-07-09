@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import { notifyAlarmsChanged } from "@/lib/alarms/alarm-events";
+import { registerBackgroundAlarmWake } from "@/lib/alarms/scheduler";
+import { canUseNotifications } from "@/lib/alarms/notifications";
 
 export function ServiceWorkerRegister() {
   useEffect(() => {
@@ -15,6 +17,9 @@ export function ServiceWorkerRegister() {
       try {
         await navigator.serviceWorker.register("/sw.js");
         notifyAlarmsChanged();
+        if (canUseNotifications()) {
+          await registerBackgroundAlarmWake();
+        }
       } catch (error) {
         console.error("Service worker registration failed:", error);
         if (retryTimer === null) {

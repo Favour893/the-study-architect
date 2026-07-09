@@ -1,9 +1,11 @@
-const CACHE_NAME = "tsa-v4";
+const CACHE_NAME = "tsa-v6";
 const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html"];
 const ALARM_DB_NAME = "tsa-alarms-v1";
 const ALARM_STORE = "meta";
 const ALARM_STATE_KEY = "state";
-
+const ALARM_CHECK_INTERVAL_MS = 60 * 1000;
+const ALARM_NEAR_WINDOW_MS = 15 * 60 * 1000;
+const ALARM_EXACT_WINDOW_MS = 15 * 1000;
 /** @type {ScheduledAlarm[]} */
 let pendingAlarms = [];
 /** @type {Set<string>} */
@@ -160,37 +162,37 @@ function alarmKey(alarm) {
 /**
  * @param {ScheduledAlarm} alarm
  */
-async function fireAlarm(alarm) {
-  const key = alarmKey(alarm);
-  if (firedAlarmKeys.has(key)) {
-    return;
+function notificationOptions(alarm, key, includeVibrate) {
+  const options = {
+    body: alarm.body,
+    tag: key,
+    icon: "/logo-mark.png",
+    badge: "/logo-mark.png",
+    silent: false,
+    requireInteraction: true,
+    data: { href: alarm.href || "/dashboard" },
+  };
+  if (includeVibrate) {
+    options.vibrate = [600, 200, 600, 200, 600, 200, 600, 200, 600];
   }
-  firedAlarmKeys.add(key);
+  return options;
+}
 
+async function showAlarmNotification(alarm, key) {
   try {
-    await self.registration.showNotification(alarm.title, {
-      body: alarm.body,
-      tag: key,
-      icon: "/logo-mark.png",
-      badge: "/logo-mark.png",
-      silent: false,
-      requireInteraction: true,
-      vibrate: [600, 200, 600, 200, 600, 200, 600, 200, 600, 200, 600, 200, 600],
-      data: { href: alarm.href || "/dashboard" },
-    });
+    await self.registration.showNotification(alarm.title, notificationOptions(alarm, key, true));
+    return true;
   } catch {
-    firedAlarmKeys.delete(key);
-    await persistAlarmState();
-    scheduleNextAlarm();
-    return;
+    try {
+      await self.registration.showNotification(alarm.title, notificationOptions(alarm, key, false));
+      return true;
+    } catch {
+      return false;
+    }
   }
+}
 
-  await persistAlarmState();
-
-  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-  for (const client of clients) {
-    client.postMessage({ type: "ALARM_FIRED", id: alarm.id, fireAt: alarm.fireAt });
-  }
+function pulseAlarmSoundToClients() {
   for (let pulse = 0; pulse < 5; pulse += 1) {
     setTimeout(() => {
       void self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((openClients) => {
@@ -200,9 +202,66 @@ async function fireAlarm(alarm) {
       });
     }, pulse * 4000);
   }
+}
+
+/**
+ * @param {ScheduledAlarm} alarm
+ * @returns {Promise<boolean>}
+ */
+async function fireAlarm(alarm) {
+  const key = alarmKey(alarm);
+  if (firedAlarmKeys.has(key)) {
+    return true;
+  }
+  firedAlarmKeys.add(key);
+
+  const shown = await showAlarmNotification(alarm, key);
+  if (!shown) {
+    firedAlarmKeys.delete(key);
+    await persistAlarmState();
+    scheduleNextAlarm();
+    return false;
+  }
+
+  await persistAlarmState();
+
+  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  for (const client of clients) {
+    client.postMessage({ type: "ALARM_FIRED", id: alarm.id, fireAt: alarm.fireAt });
+    client.postMessage({ type: "PLAY_ALARM_SOUND" });
+  }
+  pulseAlarmSoundToClients();
 
   scheduleNextAlarm();
+  return true;
 }
+
+function computeAlarmDelay(timeUntilMs) {
+  if (timeUntilMs <= ALARM_EXACT_WINDOW_MS) {
+    return Math.max(timeUntilMs, 0);
+  }
+  if (timeUntilMs <= ALARM_NEAR_WINDOW_MS) {
+    return Math.min(timeUntilMs, ALARM_CHECK_INTERVAL_MS);
+  }
+  return Math.min(timeUntilMs, 5 * ALARM_CHECK_INTERVAL_MS);
+}
+
+async function wakeAlarmScheduler() {
+  await hydrateAlarmState();
+  scheduleNextAlarm();
+}
+
+self.addEventListener("sync", (event) => {
+  if (event.tag === "alarm-sync") {
+    event.waitUntil(wakeAlarmScheduler());
+  }
+});
+
+self.addEventListener("periodicsync", (event) => {
+  if (event.tag === "alarm-check") {
+    event.waitUntil(wakeAlarmScheduler());
+  }
+});
 
 function scheduleNextAlarm() {
   if (alarmTimer !== null) {
@@ -211,8 +270,8 @@ function scheduleNextAlarm() {
   }
 
   const now = Date.now();
-  /** @type {{ alarm: ScheduledAlarm; due: number } | null} */
-  let next = null;
+  /** @type {number | null} */
+  let earliestFutureDue = null;
 
   for (const alarm of pendingAlarms) {
     const key = alarmKey(alarm);
@@ -227,21 +286,20 @@ function scheduleNextAlarm() {
       void fireAlarm(alarm);
       continue;
     }
-    if (!next || due < next.due) {
-      next = { alarm, due };
+    if (earliestFutureDue === null || due < earliestFutureDue) {
+      earliestFutureDue = due;
     }
   }
 
-  if (!next) {
+  if (earliestFutureDue === null) {
     return;
   }
 
-  const delay = Math.min(next.due - now, 2147483647);
+  const delay = computeAlarmDelay(earliestFutureDue - now);
   alarmTimer = setTimeout(() => {
-    void fireAlarm(next.alarm);
+    scheduleNextAlarm();
   }, delay);
 }
-
 self.addEventListener("message", (event) => {
   const data = event.data;
   if (!data || typeof data !== "object") {
@@ -257,12 +315,16 @@ self.addEventListener("message", (event) => {
         }
       }
     }
-    void persistAlarmState().then(() => {
+    const finalize = persistAlarmState().then(() => {
       scheduleNextAlarm();
     });
+    if (typeof event.waitUntil === "function") {
+      event.waitUntil(finalize);
+    } else {
+      void finalize;
+    }
     return;
   }
-
   if (data.type === "GET_FIRED_KEYS") {
     const replyPort = event.ports?.[0];
     if (replyPort) {
@@ -272,7 +334,12 @@ self.addEventListener("message", (event) => {
   }
 
   if (data.type === "SHOW_ALARM" && data.alarm) {
-    void fireAlarm(data.alarm);
+    const replyPort = event.ports?.[0];
+    void fireAlarm(data.alarm).then((ok) => {
+      if (replyPort) {
+        replyPort.postMessage({ ok });
+      }
+    });
   }
 });
 
