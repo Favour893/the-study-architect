@@ -1,11 +1,12 @@
 let audioContext: AudioContext | null = null;
 let activePlaybackId = 0;
+const activeOscillators: OscillatorNode[] = [];
 
 function getAudioContext() {
   if (typeof window === "undefined") {
     return null;
   }
-  if (!audioContext) {
+  if (!audioContext || audioContext.state === "closed") {
     audioContext = new AudioContext();
   }
   return audioContext;
@@ -23,6 +24,13 @@ function beep(ctx: AudioContext, startOffset: number, frequency: number, duratio
   gain.connect(ctx.destination);
   oscillator.start(ctx.currentTime + startOffset);
   oscillator.stop(ctx.currentTime + startOffset + duration + 0.05);
+  activeOscillators.push(oscillator);
+  oscillator.onended = () => {
+    const index = activeOscillators.indexOf(oscillator);
+    if (index >= 0) {
+      activeOscillators.splice(index, 1);
+    }
+  };
 }
 
 const CYCLE_DURATION_SEC = 1.5;
@@ -30,10 +38,17 @@ const ALARM_CYCLES = 12;
 
 export function stopAlarmSound() {
   activePlaybackId += 1;
-  const ctx = audioContext;
-  if (ctx && ctx.state !== "closed") {
-    void ctx.suspend();
-    void ctx.resume();
+  for (const oscillator of activeOscillators.splice(0)) {
+    try {
+      oscillator.stop();
+      oscillator.disconnect();
+    } catch {
+      // Oscillator may already be stopped.
+    }
+  }
+  if (audioContext && audioContext.state !== "closed") {
+    void audioContext.close();
+    audioContext = null;
   }
 }
 

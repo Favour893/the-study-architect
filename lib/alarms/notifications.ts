@@ -2,7 +2,9 @@ import { hasAlarmFired, markAlarmFired } from "./fired-store";
 import { areAppNotificationsEnabled } from "./notification-preference";
 import { playAlarmSound, stopAlarmSound } from "./play-alarm-sound";
 import type { ScheduledAlarm } from "./types";
+
 const inFlightDeliveries = new Set<string>();
+let activePulseStop: (() => void) | null = null;
 
 export async function ensureNotificationPermission(): Promise<boolean> {
   if (typeof window === "undefined" || !("Notification" in window)) {
@@ -34,7 +36,16 @@ export function getNotificationPermissionState(): NotificationPermissionState {
   return Notification.permission;
 }
 
+export function stopAllAlarmAudio() {
+  if (activePulseStop) {
+    activePulseStop();
+    activePulseStop = null;
+  }
+  stopAlarmSound();
+}
+
 function pulseAlarmSound() {
+  stopAllAlarmAudio();
   void playAlarmSound();
   const timers = [
     window.setTimeout(() => void playAlarmSound(), 4000),
@@ -42,12 +53,14 @@ function pulseAlarmSound() {
     window.setTimeout(() => void playAlarmSound(), 12000),
     window.setTimeout(() => void playAlarmSound(), 16000),
   ];
-  return () => {
+  activePulseStop = () => {
     for (const timer of timers) {
       window.clearTimeout(timer);
     }
     stopAlarmSound();
+    activePulseStop = null;
   };
+  return activePulseStop;
 }
 
 async function showViaServiceWorker(alarm: ScheduledAlarm): Promise<boolean> {
@@ -92,11 +105,11 @@ export async function deliverAlarm(alarm: ScheduledAlarm) {
   inFlightDeliveries.add(key);
 
   try {
-    const stopPulse = pulseAlarmSound();
+    pulseAlarmSound();
 
     const usedWorker = await showViaServiceWorker(alarm);
     if (usedWorker) {
-      stopPulse();
+      stopAllAlarmAudio();
       return;
     }
 
@@ -107,7 +120,7 @@ export async function deliverAlarm(alarm: ScheduledAlarm) {
       silent: false,
       requireInteraction: true,
     });
-    stopPulse();
+    stopAllAlarmAudio();
     markAlarmFired(alarm.id, alarm.fireAt);
   } finally {
     inFlightDeliveries.delete(key);

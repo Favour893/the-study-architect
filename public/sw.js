@@ -1,16 +1,18 @@
-const CACHE_NAME = "tsa-v7";
+const CACHE_NAME = "tsa-v8";
 const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html"];
 const ALARM_DB_NAME = "tsa-alarms-v1";
 const ALARM_STORE = "meta";
 const ALARM_STATE_KEY = "state";
-const ALARM_CHECK_INTERVAL_MS = 60 * 1000;
+const ALARM_CHECK_INTERVAL_MS = 30 * 1000;
 const ALARM_NEAR_WINDOW_MS = 15 * 60 * 1000;
-const ALARM_EXACT_WINDOW_MS = 15 * 1000;
+const ALARM_EXACT_WINDOW_MS = 10 * 1000;
 
 /** @type {ScheduledAlarm[]} */
 let pendingAlarms = [];
 /** @type {Set<string>} */
 const firedAlarmKeys = new Set();
+/** @type {Set<string>} */
+const ringingAlarmKeys = new Set();
 /** @type {number | null} */
 let alarmTimer = null;
 /** @type {number[]} */
@@ -104,9 +106,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
       .then(() => hydrateAlarmState())
-      .then(() => {
-        scheduleNextAlarm();
-      }),
+      .then(() => scheduleNextAlarm()),
   );
 });
 
@@ -167,41 +167,39 @@ function alarmKey(alarm) {
   return `${alarm.id}:${alarm.fireAt}`;
 }
 
+function notificationData(alarm, key) {
+  return {
+    href: alarm.href || "/dashboard",
+    alarmId: alarm.id,
+    fireAt: alarm.fireAt,
+    alarmKey: key,
+  };
+}
+
 function notificationOptions(alarm, key, includeVibrate) {
   const options = {
-    body: alarm.body,
+    body: `${alarm.body}\n\nTap or swipe away to turn off.`,
     tag: key,
     icon: "/logo-mark.png",
     badge: "/logo-mark.png",
     silent: false,
     requireInteraction: true,
-    renotify: true,
-    data: {
-      href: alarm.href || "/dashboard",
-      alarmId: alarm.id,
-      fireAt: alarm.fireAt,
-      alarmKey: key,
-    },
-    actions: [
-      { action: "dismiss", title: "Turn off" },
-      { action: "open", title: "Open app" },
-    ],
+    data: notificationData(alarm, key),
   };
   if (includeVibrate) {
-    options.vibrate = [600, 200, 600, 200, 600, 200, 600, 200, 600];
+    options.vibrate = [500, 150, 500, 150, 500];
   }
   return options;
 }
 
 async function showAlarmNotification(alarm, key) {
+  const options = notificationOptions(alarm, key, true);
   try {
-    await self.registration.showNotification(alarm.title, notificationOptions(alarm, key, true));
+    await self.registration.showNotification(alarm.title, options);
     return true;
   } catch {
     try {
-      const fallback = notificationOptions(alarm, key, false);
-      delete fallback.actions;
-      await self.registration.showNotification(alarm.title, fallback);
+      await self.registration.showNotification(alarm.title, notificationOptions(alarm, key, false));
       return true;
     } catch {
       try {
@@ -210,13 +208,7 @@ async function showAlarmNotification(alarm, key) {
           tag: key,
           icon: "/logo-mark.png",
           silent: false,
-          requireInteraction: true,
-          data: {
-            href: alarm.href || "/dashboard",
-            alarmId: alarm.id,
-            fireAt: alarm.fireAt,
-            alarmKey: key,
-          },
+          data: notificationData(alarm, key),
         });
         return true;
       } catch {
@@ -262,18 +254,31 @@ function notifyClientsToStopAlarm(data) {
   });
 }
 
-async function closeAlarmNotifications(data) {
-  const tag = data?.alarmKey || (data?.alarmId && data?.fireAt ? `${data.alarmId}:${data.fireAt}` : null);
-  if (!tag) {
-    return;
-  }
-  const notifications = await self.registration.getNotifications({ tag });
+async function closeAllAlarmNotifications() {
+  const notifications = await self.registration.getNotifications();
   for (const notification of notifications) {
     notification.close();
   }
 }
 
+async function closeAlarmNotifications(data) {
+  const tag = data?.alarmKey || (data?.alarmId && data?.fireAt ? `${data.alarmId}:${data.fireAt}` : null);
+  if (tag) {
+    const tagged = await self.registration.getNotifications({ tag });
+    for (const notification of tagged) {
+      notification.close();
+    }
+  }
+  await closeAllAlarmNotifications();
+}
+
 async function dismissAlarmNotification(data) {
+  const key =
+    data?.alarmKey || (data?.alarmId && data?.fireAt ? `${data.alarmId}:${data.fireAt}` : null);
+  if (key) {
+    ringingAlarmKeys.delete(key);
+  }
+
   cancelAlarmPulseTimers();
   notifyClientsToStopAlarm(data);
   await closeAlarmNotifications(data);
@@ -281,25 +286,8 @@ async function dismissAlarmNotification(data) {
   if (data?.alarmId && data?.fireAt) {
     firedAlarmKeys.add(`${data.alarmId}:${data.fireAt}`);
     await persistAlarmState();
+    scheduleNextAlarm();
   }
-}
-
-async function focusOrOpenApp(href) {
-  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-  for (const client of clients) {
-    if ("focus" in client) {
-      await client.focus();
-      if ("navigate" in client && typeof client.navigate === "function") {
-        try {
-          await client.navigate(href);
-        } catch {
-          // Ignore navigation errors on unsupported clients.
-        }
-      }
-      return;
-    }
-  }
-  await self.clients.openWindow(href);
 }
 
 /**
@@ -315,16 +303,15 @@ async function fireAlarm(alarm) {
   if (firedAlarmKeys.has(key)) {
     return true;
   }
-  firedAlarmKeys.add(key);
 
   const shown = await showAlarmNotification(alarm, key);
   if (!shown) {
-    firedAlarmKeys.delete(key);
-    await persistAlarmState();
     scheduleNextAlarm();
     return false;
   }
 
+  firedAlarmKeys.add(key);
+  ringingAlarmKeys.add(key);
   await persistAlarmState();
 
   const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
@@ -345,12 +332,12 @@ function computeAlarmDelay(timeUntilMs) {
   if (timeUntilMs <= ALARM_NEAR_WINDOW_MS) {
     return Math.min(timeUntilMs, ALARM_CHECK_INTERVAL_MS);
   }
-  return Math.min(timeUntilMs, 5 * ALARM_CHECK_INTERVAL_MS);
+  return Math.min(timeUntilMs, 2 * ALARM_CHECK_INTERVAL_MS);
 }
 
 async function wakeAlarmScheduler() {
   await hydrateAlarmState();
-  scheduleNextAlarm();
+  await scheduleNextAlarm();
 }
 
 self.addEventListener("sync", (event) => {
@@ -365,11 +352,13 @@ self.addEventListener("periodicsync", (event) => {
   }
 });
 
-function scheduleNextAlarm() {
+async function scheduleNextAlarm() {
   if (alarmTimer !== null) {
     clearTimeout(alarmTimer);
     alarmTimer = null;
   }
+
+  await hydrateAlarmState();
 
   if (!notificationsEnabled) {
     return;
@@ -403,7 +392,7 @@ function scheduleNextAlarm() {
 
   const delay = computeAlarmDelay(earliestFutureDue - now);
   alarmTimer = setTimeout(() => {
-    scheduleNextAlarm();
+    void scheduleNextAlarm();
   }, delay);
 }
 
@@ -424,8 +413,7 @@ self.addEventListener("message", (event) => {
       }
     }
     const replyPort = event.ports?.[0];
-    const finalize = persistAlarmState().then(() => {
-      scheduleNextAlarm();
+    const finalize = persistAlarmState().then(() => scheduleNextAlarm()).then(() => {
       if (replyPort) {
         replyPort.postMessage({ ok: true });
       }
@@ -465,18 +453,9 @@ self.addEventListener("message", (event) => {
 });
 
 self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
   const data = event.notification.data || {};
-  const action = event.action;
-
-  event.waitUntil(
-    (async () => {
-      await dismissAlarmNotification(data);
-      if (action === "open") {
-        await focusOrOpenApp(data.href || "/dashboard");
-      }
-    })(),
-  );
+  event.notification.close();
+  event.waitUntil(dismissAlarmNotification(data));
 });
 
 self.addEventListener("notificationclose", (event) => {

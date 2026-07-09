@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { loadCachedAlarms, saveCachedAlarms } from "@/lib/alarms/alarm-cache";
 import { ALARMS_CHANGED_EVENT } from "@/lib/alarms/alarm-events";
 import {
   buildClassAlarms,
@@ -8,9 +9,10 @@ import {
   buildPersonalTodoAlarms,
   mergeAlarms,
 } from "@/lib/alarms/build-alarms";
-import { playAlarmSound, stopAlarmSound } from "@/lib/alarms/play-alarm-sound";
+import { playAlarmSound } from "@/lib/alarms/play-alarm-sound";
 import {
   ALARM_CHECK_INTERVAL_MS,
+  flushAlarmScheduleToServiceWorker,
   mergeFiredKeysFromServiceWorker,
   registerBackgroundAlarmWake,
   runAlarmSweep,
@@ -18,7 +20,7 @@ import {
   syncAlarmsToServiceWorker,
 } from "@/lib/alarms/scheduler";
 import { markAlarmFired } from "@/lib/alarms/fired-store";
-import { deliverAlarm, canUseNotifications } from "@/lib/alarms/notifications";
+import { canUseNotifications, deliverAlarm, stopAllAlarmAudio } from "@/lib/alarms/notifications";
 import type { ScheduledAlarm } from "@/lib/alarms/types";
 import { fetchExamTimetableFromFirestore } from "@/lib/data/exam-timetable";
 import { getPersonalLog } from "@/lib/data/personal-log";
@@ -38,6 +40,13 @@ function resolveTimetableRaw(uid: string, semesterId: string) {
 function classAlarmsEnabled() {
   const stored = window.localStorage.getItem(CLASS_ALARMS_ENABLED_KEY);
   return stored !== "false";
+}
+
+function resolveAlarmsForFlush(alarmsRef: ScheduledAlarm[]) {
+  if (alarmsRef.length > 0) {
+    return alarmsRef;
+  }
+  return loadCachedAlarms();
 }
 
 export function AlarmEngine() {
@@ -88,17 +97,30 @@ export function AlarmEngine() {
     let cancelled = false;
     let clearTimers = () => {};
 
+    async function pushAlarmsToBackground(alarms: ScheduledAlarm[]) {
+      alarmsRef.current = alarms;
+      saveCachedAlarms(alarms);
+      await syncAlarmsToServiceWorker(canUseNotifications() ? alarms : []);
+    }
+
+    async function syncAlarmsNow() {
+      const alarms = await loadAlarms();
+      await pushAlarmsToBackground(alarms);
+      if (canUseNotifications()) {
+        await registerBackgroundAlarmWake();
+      }
+    }
+
     async function refresh() {
       const alarms = await loadAlarms();
       if (cancelled) {
         return;
       }
-      alarmsRef.current = alarms;
       await mergeFiredKeysFromServiceWorker();
       if (canUseNotifications()) {
         await runAlarmSweep(alarms);
       }
-      await syncAlarmsToServiceWorker(canUseNotifications() ? alarms : []);
+      await pushAlarmsToBackground(alarms);
       clearTimers();
       clearTimers = scheduleAlarmTimers(alarms, (alarm) => {
         void deliverAlarm(alarm);
@@ -120,19 +142,13 @@ export function AlarmEngine() {
     }
 
     function onAlarmsChanged() {
+      void syncAlarmsNow();
       void refresh();
     }
 
-    async function flushAlarmsToServiceWorker() {
-      const alarms = await loadAlarms();
-      if (cancelled) {
-        return;
-      }
-      alarmsRef.current = alarms;
-      await syncAlarmsToServiceWorker(canUseNotifications() ? alarms : []);
-      if (canUseNotifications()) {
-        await registerBackgroundAlarmWake();
-      }
+    function flushOnExit() {
+      const alarms = resolveAlarmsForFlush(alarmsRef.current);
+      void flushAlarmScheduleToServiceWorker(canUseNotifications() ? alarms : []);
     }
 
     function onVisibility() {
@@ -143,11 +159,7 @@ export function AlarmEngine() {
         void refresh();
         return;
       }
-      void flushAlarmsToServiceWorker();
-    }
-
-    function onPageHide() {
-      void flushAlarmsToServiceWorker();
+      flushOnExit();
     }
 
     function onServiceWorkerMessage(event: MessageEvent) {
@@ -155,31 +167,32 @@ export function AlarmEngine() {
         void playAlarmSound();
       }
       if (event.data?.type === "STOP_ALARM_SOUND") {
-        stopAlarmSound();
+        stopAllAlarmAudio();
       }
       if (event.data?.type === "ALARM_FIRED" && event.data.id && event.data.fireAt) {
         markAlarmFired(event.data.id, event.data.fireAt);
       }
       if (event.data?.type === "ALARM_DISMISSED" && event.data.id && event.data.fireAt) {
         markAlarmFired(event.data.id, event.data.fireAt);
-        stopAlarmSound();
+        stopAllAlarmAudio();
       }
     }
 
     window.addEventListener("storage", onStorage);
     window.addEventListener(ALARMS_CHANGED_EVENT, onAlarmsChanged);
     document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pagehide", flushOnExit);
     navigator.serviceWorker?.addEventListener("message", onServiceWorkerMessage);
 
     return () => {
       cancelled = true;
+      flushOnExit();
       window.clearInterval(intervalId);
       clearTimers();
       window.removeEventListener("storage", onStorage);
       window.removeEventListener(ALARMS_CHANGED_EVENT, onAlarmsChanged);
       document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pagehide", flushOnExit);
       navigator.serviceWorker?.removeEventListener("message", onServiceWorkerMessage);
     };
   }, [user, activeSemesterId, semesterLoading, loadAlarms]);

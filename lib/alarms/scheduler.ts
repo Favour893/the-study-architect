@@ -1,3 +1,4 @@
+import { saveCachedAlarms } from "./alarm-cache";
 import { persistAlarmSchedule } from "./alarm-persist";
 import { hasAlarmFired, listFiredAlarmKeys, mergeFiredAlarmKeys } from "./fired-store";
 import { areAppNotificationsEnabled } from "./notification-preference";
@@ -121,10 +122,12 @@ async function postSyncToServiceWorker(
   await acknowledged;
 }
 
-export async function syncAlarmsToServiceWorker(alarms: ScheduledAlarm[]) {
+export async function flushAlarmScheduleToServiceWorker(alarms: ScheduledAlarm[]) {
   const notificationsEnabled = notificationsEnabledForSync();
   const scheduledAlarms = notificationsEnabled ? alarms : [];
   const firedKeys = listFiredAlarmKeys();
+
+  saveCachedAlarms(scheduledAlarms);
 
   await persistAlarmSchedule({
     pendingAlarms: scheduledAlarms,
@@ -136,6 +139,10 @@ export async function syncAlarmsToServiceWorker(alarms: ScheduledAlarm[]) {
   if (notificationsEnabled) {
     await registerBackgroundAlarmWake();
   }
+}
+
+export async function syncAlarmsToServiceWorker(alarms: ScheduledAlarm[]) {
+  await flushAlarmScheduleToServiceWorker(alarms);
 }
 
 export function runAlarmSweep(alarms: ScheduledAlarm[]) {
