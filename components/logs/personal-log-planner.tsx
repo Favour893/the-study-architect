@@ -14,6 +14,7 @@ import {
 } from "@/lib/ui/form-styles";
 import { ShimmerPanel } from "@/components/ui/shimmer";
 import { useToast } from "@/providers/toast-provider";
+import { PersonalTimetableSection } from "@/components/logs/personal-timetable-section";
 
 type PersonalLogPlannerProps = {
   uid: string;
@@ -485,6 +486,8 @@ export function PersonalLogPlanner({ uid }: PersonalLogPlannerProps) {
           )}
         </div>
       </section>
+
+      <PersonalTimetableSection />
     </div>
   );
 }

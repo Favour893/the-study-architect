@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CalendarDays } from "lucide-react";
 import {
   PERSONAL_TIMETABLE_DAYS,
   PERSONAL_TIMETABLE_END_HOUR,
   PERSONAL_TIMETABLE_START_HOUR,
-  parsePersonalTimetableStorage,
   personalTimetableStorageKey,
+  loadPersonalTimetableEntries,
   serializePersonalTimetableStorage,
   type PersonalTimetableDay,
 } from "@/lib/personal-timetable-storage";
@@ -27,6 +27,7 @@ import {
   FORM_SECONDARY_BUTTON_CLASS,
 } from "@/lib/ui/form-styles";
 import { useAuth } from "@/providers/auth-provider";
+import { ShimmerPanel } from "@/components/ui/shimmer";
 
 type Slot = {
   key: string;
@@ -70,15 +71,14 @@ const timetableGridWidth = `calc(7rem + ${slots.length} * 4rem)`;
 const maxBlockDurationHours = PERSONAL_TIMETABLE_DAYS.length * slots.length;
 
 function readStoredEntries(uid: string): TimetableState {
-  const raw = window.localStorage.getItem(personalTimetableStorageKey(uid));
-  const parsed = raw ? parsePersonalTimetableStorage(raw) : null;
-  return parsed?.entries ?? {};
+  return loadPersonalTimetableEntries(uid);
 }
 
 export function PersonalTimetableSection() {
   const { user } = useAuth();
   const [entries, setEntries] = useState<TimetableState>({});
   const [ready, setReady] = useState(false);
+  const skipNextSaveRef = useRef(true);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [draggingKey, setDraggingKey] = useState<string | null>(null);
   const [draftEntry, setDraftEntry] = useState<TimetableEntry>({
@@ -93,14 +93,20 @@ export function PersonalTimetableSection() {
     if (!user) {
       setEntries({});
       setReady(false);
+      skipNextSaveRef.current = true;
       return;
     }
     setEntries(readStoredEntries(user.uid));
+    skipNextSaveRef.current = true;
     setReady(true);
   }, [user]);
 
   useEffect(() => {
     if (!ready || !user) {
+      return;
+    }
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
       return;
     }
     window.localStorage.setItem(
@@ -349,6 +355,10 @@ export function PersonalTimetableSection() {
         <p className="text-sm text-app-subtle">Sign in to use your personal timetable.</p>
       </section>
     );
+  }
+
+  if (!ready) {
+    return <ShimmerPanel barClassName="from-teal-500 via-cyan-500 to-sky-500" bodyClassName="h-56" />;
   }
 
   return (

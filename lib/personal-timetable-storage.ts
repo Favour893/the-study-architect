@@ -83,3 +83,12 @@ export function serializePersonalTimetableStorage(entries: TimetableState) {
     entries,
   });
 }
+
+export function loadPersonalTimetableEntries(uid: string): TimetableState {
+  if (typeof window === "undefined") {
+    return {};
+  }
+  const raw = window.localStorage.getItem(personalTimetableStorageKey(uid));
+  const parsed = raw ? parsePersonalTimetableStorage(raw) : null;
+  return parsed?.entries ?? {};
+}
