@@ -1,4 +1,35 @@
-const CACHE_NAME = "tsa-v12";
+/* Firebase Cloud Messaging must initialize in this worker for closed-app push. */
+try {
+  importScripts("/firebase-messaging-config.js");
+  importScripts("https://www.gstatic.com/firebasejs/12.12.1/firebase-app-compat.js");
+  importScripts("https://www.gstatic.com/firebasejs/12.12.1/firebase-messaging-compat.js");
+  if (self.firebase && self.__FIREBASE_CONFIG__?.projectId && self.__FIREBASE_CONFIG__?.apiKey) {
+    self.firebase.initializeApp(self.__FIREBASE_CONFIG__);
+    const messaging = self.firebase.messaging();
+    messaging.onBackgroundMessage((payload) => {
+      const data = payload?.data || {};
+      const alarmId = data.alarmId;
+      const fireAt = data.fireAt;
+      if (!alarmId || !fireAt) {
+        return;
+      }
+      const alarm = {
+        id: alarmId,
+        fireAt,
+        title: data.title || payload?.notification?.title || "Reminder",
+        body: data.body || payload?.notification?.body || "",
+        href: data.href || "/dashboard",
+      };
+      // If FCM already included a notification payload, the OS may show it.
+      // Still run fireAlarm so we track state and wake open clients for the chime.
+      return fireAlarm(alarm);
+    });
+  }
+} catch (error) {
+  console.warn("[tsa-sw] FCM init skipped:", error);
+}
+
+const CACHE_NAME = "tsa-v14";
 const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html"];
 const ALARM_DB_NAME = "tsa-alarms-v1";
 const ALARM_STORE = "meta";
@@ -478,6 +509,11 @@ async function scheduleNextAlarm() {
 self.addEventListener("message", (event) => {
   const data = event.data;
   if (!data || typeof data !== "object") {
+    return;
+  }
+
+  if (data.type === "SKIP_WAITING") {
+    void self.skipWaiting();
     return;
   }
 

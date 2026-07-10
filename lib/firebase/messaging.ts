@@ -19,16 +19,16 @@ export async function ensureFcmToken(): Promise<string | null> {
   }
 
   try {
-    const registration = await navigator.serviceWorker.ready;
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
     const messaging = getMessaging(firebaseApp);
-    return await getToken(messaging, {
+    const token = await getToken(messaging, {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
       serviceWorkerRegistration: registration,
     });
+    return token || null;
   } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("FCM token registration failed:", error);
-    }
+    console.warn("FCM token registration failed:", error);
     return null;
   }
 }

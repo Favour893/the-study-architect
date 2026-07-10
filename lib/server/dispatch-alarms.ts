@@ -22,10 +22,18 @@ function isDue(fireAt: string, nowIso: string) {
   return fireMs <= nowMs + 15_000;
 }
 
+function appOrigin() {
+  return (process.env.NEXT_PUBLIC_APP_URL || "https://the-study-architect.vercel.app").replace(/\/$/, "");
+}
+
 async function sendAlarmPush(fcmToken: string, job: AlarmJob) {
   const alarmKey = `${job.alarmId}:${job.fireAt}`;
   const title = String(job.title || "Reminder");
   const body = `${String(job.body ?? "")}\n\nTap or swipe away to turn off.`.trim();
+  const origin = appOrigin();
+  const icon = `${origin}/logo-mark.png`;
+  const href = String(job.href || "/dashboard");
+  const link = href.startsWith("http") ? href : `${origin}${href.startsWith("/") ? href : `/${href}`}`;
   getAdminDb();
   await getMessaging().send({
     token: fcmToken,
@@ -39,7 +47,7 @@ async function sendAlarmPush(fcmToken: string, job: AlarmJob) {
       fireAt: String(job.fireAt),
       title,
       body: String(job.body ?? ""),
-      href: String(job.href || "/dashboard"),
+      href,
       alarmKey: String(alarmKey),
     },
     webpush: {
@@ -50,14 +58,14 @@ async function sendAlarmPush(fcmToken: string, job: AlarmJob) {
       notification: {
         title,
         body,
-        icon: "/logo-mark.png",
-        badge: "/logo-mark.png",
+        icon,
+        badge: icon,
         tag: alarmKey,
         requireInteraction: true,
         silent: false,
       },
       fcmOptions: {
-        link: "/",
+        link,
       },
     },
   });

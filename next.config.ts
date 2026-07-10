@@ -38,6 +38,12 @@ const nextConfig: NextConfig = {
       ],
     },
   ],
+  rewrites: async () => [
+    {
+      source: "/firebase-messaging-config.js",
+      destination: "/api/firebase-messaging-config",
+    },
+  ],
 };
 
 const sentryOptions = {

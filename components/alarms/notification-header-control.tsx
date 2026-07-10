@@ -19,6 +19,8 @@ import {
 } from "@/lib/alarms/notifications";
 import { useAuth } from "@/providers/auth-provider";
 import { syncAlarmDispatch, saveAlarmDispatchMeta } from "@/lib/data/alarm-dispatch";
+import { requestTestPush } from "@/lib/alarms/server-dispatch";
+import { getClientAuth } from "@/lib/firebase/auth";
 
 function isIosDevice() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -38,6 +40,8 @@ export function NotificationHeaderControl() {
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [testSent, setTestSent] = useState(false);
+  const [testMessage, setTestMessage] = useState<string | null>(null);
+  const [pushTokenReady, setPushTokenReady] = useState<boolean | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -81,6 +85,7 @@ export function NotificationHeaderControl() {
       return;
     }
     if (!enabled) {
+      setPushTokenReady(false);
       await saveAlarmDispatchMeta(user.uid, { notificationsEnabled: false });
       await syncAlarmDispatch(user.uid, [], null);
       return;
@@ -89,6 +94,7 @@ export function NotificationHeaderControl() {
       return;
     }
     const token = await ensureFcmToken();
+    setPushTokenReady(Boolean(token));
     await saveAlarmDispatchMeta(user.uid, {
       fcmToken: token,
       notificationsEnabled: true,
@@ -152,9 +158,34 @@ export function NotificationHeaderControl() {
 
   async function sendTest() {
     setBusy(true);
+    setTestSent(false);
+    setTestMessage(null);
     try {
-      const ok = await sendTestNotification();
-      setTestSent(ok);
+      await syncPushRegistration(true);
+      const localOk = await sendTestNotification();
+
+      const firebaseUser = getClientAuth().currentUser;
+      if (!firebaseUser) {
+        setTestSent(localOk);
+        setTestMessage(localOk ? "Local test shown. Sign in again to verify background push." : null);
+        return;
+      }
+      const idToken = await firebaseUser.getIdToken();
+      const push = await requestTestPush(idToken);
+      if (push.ok) {
+        setTestSent(true);
+        setTestMessage(
+          "Background push sent. Close TSA (or lock the phone) — you should get a system alert with the phone’s notification sound.",
+        );
+      } else {
+        setTestSent(localOk);
+        setTestMessage(
+          push.hint ||
+            (push.error === "missing_fcm_token"
+              ? "Push token missing. Toggle notifications off/on, then try again."
+              : `Background push failed: ${push.error || "unknown"}. Local chime still played.`),
+        );
+      }
     } finally {
       setBusy(false);
     }
@@ -240,12 +271,23 @@ export function NotificationHeaderControl() {
                   <p className="text-sm font-medium text-app-fg">Notifications</p>
                   <p className="mt-0.5 text-xs text-app-subtle">
                     {appEnabled
-                      ? "Alarms ring when the app is closed. Tap a notification to turn it off."
+                      ? "When closed, your phone shows a system alert. Custom chimes play while TSA is open."
                       : "Alarms are paused on this device."}
                   </p>
                   {appEnabled && !pushReady ? (
                     <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
                       Background push is not configured on the server yet (missing VAPID key).
+                    </p>
+                  ) : null}
+                  {appEnabled && pushReady && pushTokenReady === false ? (
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                      Push token not registered on this device yet. Toggle notifications off/on, or allow
+                      notifications again.
+                    </p>
+                  ) : null}
+                  {appEnabled && pushTokenReady === true ? (
+                    <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
+                      Background push registered on this device.
                     </p>
                   ) : null}
                 </div>
@@ -265,11 +307,23 @@ export function NotificationHeaderControl() {
 
               {appEnabled ? (
                 <>
-                  {testSent ? (
+                  {testSent || testMessage ? (
                     <div className="mt-3 flex items-start gap-2">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                        Test notification sent.
+                      <CheckCircle2
+                        className={`mt-0.5 h-4 w-4 shrink-0 ${
+                          testSent
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-amber-600 dark:text-amber-400"
+                        }`}
+                      />
+                      <p
+                        className={`text-xs font-medium ${
+                          testSent
+                            ? "text-emerald-700 dark:text-emerald-300"
+                            : "text-amber-800 dark:text-amber-200"
+                        }`}
+                      >
+                        {testMessage || "Test notification sent."}
                       </p>
                     </div>
                   ) : null}
@@ -280,7 +334,7 @@ export function NotificationHeaderControl() {
                     onClick={() => void sendTest()}
                     className="mt-3 w-full rounded-lg border border-app-border bg-panel px-3 py-1.5 text-xs font-medium text-app-fg hover:bg-app-muted disabled:opacity-60"
                   >
-                    Send test notification
+                    Send background push test
                   </ShimmerButton>
                 </>
               ) : null}
