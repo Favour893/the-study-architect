@@ -12,16 +12,32 @@ type AlarmJob = {
   notificationsEnabled?: boolean;
 };
 
+function isDue(fireAt: string, nowIso: string) {
+  const fireMs = new Date(fireAt).getTime();
+  const nowMs = new Date(nowIso).getTime();
+  if (Number.isNaN(fireMs) || Number.isNaN(nowMs)) {
+    return fireAt <= nowIso;
+  }
+  // Allow a small clock skew window.
+  return fireMs <= nowMs + 15_000;
+}
+
 async function sendAlarmPush(fcmToken: string, job: AlarmJob) {
   const alarmKey = `${job.alarmId}:${job.fireAt}`;
-  // Ensure Admin app is initialized before messaging.
+  const title = String(job.title || "Reminder");
+  const body = `${String(job.body ?? "")}\n\nTap or swipe away to turn off.`.trim();
   getAdminDb();
   await getMessaging().send({
     token: fcmToken,
+    // Notification payload helps Android/Chrome wake and display when closed.
+    notification: {
+      title,
+      body,
+    },
     data: {
       alarmId: String(job.alarmId),
       fireAt: String(job.fireAt),
-      title: String(job.title),
+      title,
       body: String(job.body ?? ""),
       href: String(job.href || "/dashboard"),
       alarmKey: String(alarmKey),
@@ -29,7 +45,19 @@ async function sendAlarmPush(fcmToken: string, job: AlarmJob) {
     webpush: {
       headers: {
         Urgency: "high",
-        TTL: "120",
+        TTL: "300",
+      },
+      notification: {
+        title,
+        body,
+        icon: "/logo-mark.png",
+        badge: "/logo-mark.png",
+        tag: alarmKey,
+        requireInteraction: true,
+        silent: false,
+      },
+      fcmOptions: {
+        link: "/",
       },
     },
   });
@@ -39,9 +67,8 @@ async function loadDueAlarmJobDocs() {
   const db = getAdminDb();
   try {
     const snapshot = await db.collectionGroup("alarmJobs").where("fired", "==", false).limit(250).get();
-    return snapshot.docs;
-  } catch {
-    // Collection-group index may be missing/building — fall back to per-user queries.
+    return { docs: snapshot.docs, source: "collectionGroup" as const };
+  } catch (error) {
     const users = await db.collection("users").limit(200).get();
     const docs: QueryDocumentSnapshot[] = [];
     for (const userDoc of users.docs) {
@@ -55,7 +82,11 @@ async function loadDueAlarmJobDocs() {
         break;
       }
     }
-    return docs.slice(0, 250);
+    return {
+      docs: docs.slice(0, 250),
+      source: "perUserFallback" as const,
+      fallbackError: error instanceof Error ? error.message : "collection_group_failed",
+    };
   }
 }
 
@@ -65,6 +96,7 @@ async function dispatchJobDocs(jobDocs: QueryDocumentSnapshot[], nowIso: string)
   let sent = 0;
   let skipped = 0;
   let due = 0;
+  let waiting = 0;
   const errors: string[] = [];
 
   for (const jobDoc of jobDocs) {
@@ -74,7 +106,8 @@ async function dispatchJobDocs(jobDocs: QueryDocumentSnapshot[], nowIso: string)
       skipped += 1;
       continue;
     }
-    if (job.fireAt > nowIso) {
+    if (!isDue(job.fireAt, nowIso)) {
+      waiting += 1;
       continue;
     }
     due += 1;
@@ -114,12 +147,17 @@ async function dispatchJobDocs(jobDocs: QueryDocumentSnapshot[], nowIso: string)
     }
   }
 
-  return { checked, due, sent, skipped, errors };
+  return { checked, due, waiting, sent, skipped, errors };
 }
 
 export async function dispatchDueAlarmJobs(nowIso = new Date().toISOString()) {
-  const docs = await loadDueAlarmJobDocs();
-  return dispatchJobDocs(docs, nowIso);
+  const loaded = await loadDueAlarmJobDocs();
+  const result = await dispatchJobDocs(loaded.docs, nowIso);
+  return {
+    ...result,
+    source: loaded.source,
+    fallbackError: "fallbackError" in loaded ? loaded.fallbackError : undefined,
+  };
 }
 
 export async function dispatchDueAlarmJobsForUser(uid: string, nowIso = new Date().toISOString()) {

@@ -12,18 +12,27 @@ function getAudioContext() {
   return audioContext;
 }
 
-function beep(ctx: AudioContext, startOffset: number, frequency: number, duration: number) {
+/** Soft bell / chime partial (sine + gentle decay). */
+function chimePartial(
+  ctx: AudioContext,
+  startOffset: number,
+  frequency: number,
+  duration: number,
+  peakGain: number,
+) {
   const oscillator = ctx.createOscillator();
   const gain = ctx.createGain();
-  oscillator.type = "square";
+  oscillator.type = "sine";
   oscillator.frequency.value = frequency;
-  gain.gain.setValueAtTime(0.0001, ctx.currentTime + startOffset);
-  gain.gain.exponentialRampToValueAtTime(0.4, ctx.currentTime + startOffset + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + startOffset + duration);
+  const t0 = ctx.currentTime + startOffset;
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(peakGain, t0 + 0.02);
+  gain.gain.exponentialRampToValueAtTime(peakGain * 0.35, t0 + duration * 0.35);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
   oscillator.connect(gain);
   gain.connect(ctx.destination);
-  oscillator.start(ctx.currentTime + startOffset);
-  oscillator.stop(ctx.currentTime + startOffset + duration + 0.05);
+  oscillator.start(t0);
+  oscillator.stop(t0 + duration + 0.05);
   activeOscillators.push(oscillator);
   oscillator.onended = () => {
     const index = activeOscillators.indexOf(oscillator);
@@ -33,8 +42,18 @@ function beep(ctx: AudioContext, startOffset: number, frequency: number, duratio
   };
 }
 
-const CYCLE_DURATION_SEC = 1.5;
-const ALARM_CYCLES = 12;
+/** One bell strike: fundamental + harmonics for a clock-chime character. */
+function bellStrike(ctx: AudioContext, startOffset: number, fundamental: number) {
+  chimePartial(ctx, startOffset, fundamental, 1.35, 0.28);
+  chimePartial(ctx, startOffset, fundamental * 2.0, 1.1, 0.12);
+  chimePartial(ctx, startOffset, fundamental * 2.76, 0.9, 0.07);
+  chimePartial(ctx, startOffset, fundamental * 4.07, 0.7, 0.04);
+}
+
+const CYCLE_DURATION_SEC = 2.4;
+const ALARM_CYCLES = 8;
+/** Westminster-ish / alarm-clock chime notes (Hz). */
+const CHIME_NOTES = [523.25, 659.25, 783.99, 1046.5];
 
 export function stopAlarmSound() {
   activePlaybackId += 1;
@@ -68,9 +87,8 @@ export async function playAlarmSound() {
       return;
     }
     const base = cycle * CYCLE_DURATION_SEC;
-    beep(ctx, base, 880, 0.35);
-    beep(ctx, base + 0.38, 988, 0.35);
-    beep(ctx, base + 0.76, 880, 0.35);
-    beep(ctx, base + 1.14, 988, 0.45);
+    CHIME_NOTES.forEach((note, index) => {
+      bellStrike(ctx, base + index * 0.42, note);
+    });
   }
 }

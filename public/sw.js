@@ -1,4 +1,4 @@
-const CACHE_NAME = "tsa-v11";
+const CACHE_NAME = "tsa-v12";
 const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html"];
 const ALARM_DB_NAME = "tsa-alarms-v1";
 const ALARM_STORE = "meta";
@@ -592,10 +592,15 @@ self.addEventListener("notificationclose", (event) => {
 });
 
 self.addEventListener("push", (event) => {
-  if (!notificationsEnabled) {
-    return;
-  }
-  event.waitUntil(handlePushEvent(event));
+  event.waitUntil(
+    (async () => {
+      await hydrateAlarmState();
+      if (!notificationsEnabled) {
+        return;
+      }
+      await handlePushEvent(event);
+    })(),
+  );
 });
 
 /**
@@ -642,4 +647,4 @@ async function handlePushEvent(event) {
   };
 
   await fireAlarm(alarm);
-});
+}
