@@ -5,32 +5,15 @@ try {
   importScripts("https://www.gstatic.com/firebasejs/12.12.1/firebase-messaging-compat.js");
   if (self.firebase && self.__FIREBASE_CONFIG__?.projectId && self.__FIREBASE_CONFIG__?.apiKey) {
     self.firebase.initializeApp(self.__FIREBASE_CONFIG__);
-    const messaging = self.firebase.messaging();
-    messaging.onBackgroundMessage((payload) => {
-      const data = payload?.data || {};
-      const alarmId = data.alarmId;
-      const fireAt = data.fireAt;
-      if (!alarmId || !fireAt) {
-        return;
-      }
-      const alarm = {
-        id: alarmId,
-        fireAt,
-        title: data.title || payload?.notification?.title || "Reminder",
-        body: data.body || payload?.notification?.body || "",
-        href: data.href || "/dashboard",
-      };
-      // If FCM already included a notification payload, the OS may show it.
-      // Still run fireAlarm so we track state and wake open clients for the chime.
-      return fireAlarm(alarm);
-    });
+    // Keep messaging alive so FCM delivers to this SW. Display is handled in our `push` listener.
+    self.firebase.messaging();
   }
 } catch (error) {
   console.warn("[tsa-sw] FCM init skipped:", error);
 }
 
-const CACHE_NAME = "tsa-v14";
-const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html"];
+const CACHE_NAME = "tsa-v15";
+const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html", "/sounds/clock-chime.wav"];
 const ALARM_DB_NAME = "tsa-alarms-v1";
 const ALARM_STORE = "meta";
 const ALARM_STATE_KEY = "state";
@@ -631,9 +614,7 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     (async () => {
       await hydrateAlarmState();
-      if (!notificationsEnabled) {
-        return;
-      }
+      // Always honor server pushes — local SW flag can be stale after PWA kill.
       await handlePushEvent(event);
     })(),
   );
@@ -669,7 +650,7 @@ async function handlePushEvent(event) {
   }
 
   const key = data.alarmKey || `${alarmId}:${fireAt}`;
-  if (firedAlarmKeys.has(key)) {
+  if (firedAlarmKeys.has(key) || ringingAlarmKeys.has(key)) {
     return;
   }
 
@@ -682,5 +663,35 @@ async function handlePushEvent(event) {
     href: data.href || "/dashboard",
   };
 
-  await fireAlarm(alarm);
+  // Bypass local notificationsEnabled — FCM means the server already decided to alert.
+  const shown = await showAlarmNotification(alarm, key);
+  if (!shown) {
+    return;
+  }
+
+  firedAlarmKeys.add(key);
+  ringingAlarmKeys.add(key);
+  lastFiredAlert = {
+    alarmId: alarm.id,
+    fireAt: alarm.fireAt,
+    title: alarm.title || "Reminder",
+    body: alarm.body || "",
+    href: alarm.href || "/dashboard",
+    seenAt: Date.now(),
+  };
+  await persistAlarmState();
+
+  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  for (const client of clients) {
+    client.postMessage({
+      type: "ALARM_FIRED",
+      id: alarm.id,
+      fireAt: alarm.fireAt,
+      title: alarm.title,
+      body: alarm.body,
+      href: alarm.href || "/dashboard",
+    });
+    client.postMessage({ type: "PLAY_ALARM_SOUND" });
+  }
+  pulseAlarmSoundToClients();
 }

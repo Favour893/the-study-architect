@@ -31,17 +31,13 @@ async function sendAlarmPush(fcmToken: string, job: AlarmJob) {
   const title = String(job.title || "Reminder");
   const body = `${String(job.body ?? "")}\n\nTap or swipe away to turn off.`.trim();
   const origin = appOrigin();
-  const icon = `${origin}/logo-mark.png`;
   const href = String(job.href || "/dashboard");
   const link = href.startsWith("http") ? href : `${origin}${href.startsWith("/") ? href : `/${href}`}`;
   getAdminDb();
+  // Data-only: the PWA service worker must show the notification.
+  // This is more reliable for installed PWAs than relying on the browser auto-display path.
   await getMessaging().send({
     token: fcmToken,
-    // Notification payload helps Android/Chrome wake and display when closed.
-    notification: {
-      title,
-      body,
-    },
     data: {
       alarmId: String(job.alarmId),
       fireAt: String(job.fireAt),
@@ -54,15 +50,6 @@ async function sendAlarmPush(fcmToken: string, job: AlarmJob) {
       headers: {
         Urgency: "high",
         TTL: "300",
-      },
-      notification: {
-        title,
-        body,
-        icon,
-        badge: icon,
-        tag: alarmKey,
-        requireInteraction: true,
-        silent: false,
       },
       fcmOptions: {
         link,
@@ -110,7 +97,7 @@ async function dispatchJobDocs(jobDocs: QueryDocumentSnapshot[], nowIso: string)
   for (const jobDoc of jobDocs) {
     checked += 1;
     const job = jobDoc.data() as AlarmJob;
-    if (!job.notificationsEnabled || !job.alarmId || !job.fireAt || !job.title) {
+    if (!job.alarmId || !job.fireAt || !job.title) {
       skipped += 1;
       continue;
     }
@@ -127,7 +114,14 @@ async function dispatchJobDocs(jobDocs: QueryDocumentSnapshot[], nowIso: string)
     }
 
     const meta = await db.doc(`users/${uid}/alarmDispatch/meta`).get();
-    const fcmToken = meta.exists ? (meta.data()?.fcmToken as string | undefined) : undefined;
+    const metaData = meta.exists ? meta.data() : undefined;
+    const fcmToken = metaData?.fcmToken as string | undefined;
+    const metaEnabled = metaData?.notificationsEnabled !== false;
+    // Prefer user meta over a possibly stale per-job flag.
+    if (!metaEnabled || job.notificationsEnabled === false) {
+      skipped += 1;
+      continue;
+    }
     if (!fcmToken) {
       skipped += 1;
       if (errors.length < 5) {

@@ -48,12 +48,8 @@ export function stopAllAlarmAudio() {
 function pulseAlarmSound() {
   stopAllAlarmAudio();
   void playAlarmSound();
-  const timers = [
-    window.setTimeout(() => void playAlarmSound(), 4000),
-    window.setTimeout(() => void playAlarmSound(), 8000),
-    window.setTimeout(() => void playAlarmSound(), 12000),
-    window.setTimeout(() => void playAlarmSound(), 16000),
-  ];
+  // One soft follow-up after the main chime cycle finishes (~18s × loops).
+  const timers = [window.setTimeout(() => void playAlarmSound(), 20_000)];
   activePulseStop = () => {
     for (const timer of timers) {
       window.clearTimeout(timer);

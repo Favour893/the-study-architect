@@ -135,13 +135,15 @@ export function AlarmEngine() {
     }
 
     async function pushAlarmsToBackground(alarms: ScheduledAlarm[]) {
-      alarmsRef.current = alarms;
-      saveCachedAlarms(alarms);
+      const effective =
+        alarms.length > 0 ? alarms : canUseNotifications() ? loadCachedAlarms() : [];
+      alarmsRef.current = effective.length > 0 ? effective : alarms;
+      saveCachedAlarms(alarmsRef.current);
       const token = await ensurePushToken();
-      await syncAlarmsToServiceWorker(canUseNotifications() ? alarms : []);
+      await syncAlarmsToServiceWorker(canUseNotifications() ? alarmsRef.current : []);
       if (hasFirebaseConfig) {
         try {
-          await syncAlarmDispatch(uid, canUseNotifications() ? alarms : [], token);
+          await syncAlarmDispatch(uid, canUseNotifications() ? alarmsRef.current : [], token);
         } catch {
           // Cloud dispatch is best-effort; local scheduling still runs.
         }

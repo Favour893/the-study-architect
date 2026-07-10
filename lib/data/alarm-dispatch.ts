@@ -57,6 +57,7 @@ export async function syncAlarmDispatch(
   const existing = await getDocs(jobsRef);
   const nextJobIds = new Set(scheduledAlarms.map(alarmJobId));
   const batch = writeBatch(db);
+  const nowMs = Date.now();
 
   for (const alarm of scheduledAlarms) {
     const key = `${alarm.id}:${alarm.fireAt}`;
@@ -76,9 +77,27 @@ export async function syncAlarmDispatch(
   }
 
   for (const snapshot of existing.docs) {
-    if (!nextJobIds.has(snapshot.id)) {
-      batch.delete(snapshot.ref);
+    if (nextJobIds.has(snapshot.id)) {
+      continue;
     }
+    const data = snapshot.data();
+    if (!notificationsEnabled) {
+      // Keep jobs but mark disabled so a bad toggle/race does not erase the schedule.
+      batch.set(
+        snapshot.ref,
+        { notificationsEnabled: false, updatedAt: serverTimestamp() },
+        { merge: true },
+      );
+      continue;
+    }
+    const fireMs = new Date(String(data.fireAt || "")).getTime();
+    const isFutureUnfired =
+      data.fired !== true && !Number.isNaN(fireMs) && fireMs > nowMs - 60_000;
+    // Empty sync lists often mean a transient load failure — do not wipe future jobs.
+    if (scheduledAlarms.length === 0 && isFutureUnfired) {
+      continue;
+    }
+    batch.delete(snapshot.ref);
   }
 
   await batch.commit();
