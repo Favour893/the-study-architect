@@ -108,17 +108,19 @@ export function RecentAlertBanner() {
     return null;
   }
 
+  const currentAlert = alert;
+
   function dismiss() {
-    markRecentAlertShown(alert.alarmId, alert.fireAt);
+    markRecentAlertShown(currentAlert.alarmId, currentAlert.fireAt);
     clearRecentAlert();
     setAlert(null);
   }
 
   function viewSource() {
-    markRecentAlertShown(alert.alarmId, alert.fireAt);
+    markRecentAlertShown(currentAlert.alarmId, currentAlert.fireAt);
     clearRecentAlert();
     setAlert(null);
-    router.push(alert.href || "/dashboard");
+    router.push(currentAlert.href || "/dashboard");
   }
 
   return (
@@ -132,8 +134,8 @@ export function RecentAlertBanner() {
           <Bell className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-app-fg">{alert.title}</p>
-          {alert.body ? <p className="mt-0.5 text-sm text-app-subtle">{alert.body}</p> : null}
+          <p className="text-sm font-semibold text-app-fg">{currentAlert.title}</p>
+          {currentAlert.body ? <p className="mt-0.5 text-sm text-app-subtle">{currentAlert.body}</p> : null}
           <div className="mt-2 flex flex-wrap gap-2">
             <button
               type="button"
