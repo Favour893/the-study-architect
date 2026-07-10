@@ -1,5 +1,10 @@
 import type { PersonalTodo } from "../types/domain";
 import type { ExamTimetableColumn, ExamTimetableRow } from "../exam-timetable-storage";
+import {
+  buildClassAlertHref,
+  buildExamAlertHref,
+  buildTodoAlertHref,
+} from "./alert-deep-link";
 import type { ScheduledAlarm } from "./types";
 import { ALARM_MAX_FUTURE_MS } from "./types";
 
@@ -43,7 +48,7 @@ export function buildPersonalTodoAlarms(todos: PersonalTodo[], now = new Date())
       fireAt: new Date(fireAtMs).toISOString(),
       title: "Reminder",
       body: todo.title,
-      href: "/logs",
+      href: buildTodoAlertHref(todo.id),
     });
   }
   return alarms;
@@ -71,7 +76,7 @@ export function buildExamAlarms(
       fireAt: new Date(fireAtMs).toISOString(),
       title: "Exam reminder",
       body: courseLabel,
-      href: "/timetable",
+      href: buildExamAlertHref(row.id),
     });
   }
   return alarms;
@@ -139,7 +144,7 @@ export function buildClassAlarms(timetableRaw: string | null, now = new Date(), 
         fireAt: fireAt.toISOString(),
         title: "Class starting now",
         body: location ? `${courseName} · ${location}` : courseName,
-        href: "/timetable",
+        href: buildClassAlertHref(entryKey),
       });
     }
   }

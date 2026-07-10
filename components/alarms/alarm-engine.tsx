@@ -20,6 +20,7 @@ import {
   syncAlarmsToServiceWorker,
 } from "@/lib/alarms/scheduler";
 import { requestServerAlarmDispatch } from "@/lib/alarms/server-dispatch";
+import { saveRecentAlert } from "@/lib/alarms/alert-deep-link";
 import { markAlarmFired } from "@/lib/alarms/fired-store";
 import { canUseNotifications, deliverAlarm, stopAllAlarmAudio } from "@/lib/alarms/notifications";
 import type { ScheduledAlarm } from "@/lib/alarms/types";
@@ -224,6 +225,35 @@ export function AlarmEngine() {
       }
       if (event.data?.type === "ALARM_FIRED" && event.data.id && event.data.fireAt) {
         markAlarmFired(event.data.id, event.data.fireAt);
+        const matched = alarmsRef.current.find(
+          (alarm) => alarm.id === event.data.id && alarm.fireAt === event.data.fireAt,
+        );
+        saveRecentAlert({
+          alarmId: event.data.id,
+          fireAt: event.data.fireAt,
+          title:
+            matched?.title ??
+            (typeof event.data.title === "string" ? event.data.title : "Reminder"),
+          body:
+            matched?.body ?? (typeof event.data.body === "string" ? event.data.body : ""),
+          href:
+            matched?.href ??
+            (typeof event.data.href === "string" ? event.data.href : "/dashboard"),
+        });
+      }
+      if (event.data?.type === "ALARM_OPENED" && event.data.id && event.data.fireAt) {
+        markAlarmFired(event.data.id, event.data.fireAt);
+        saveRecentAlert({
+          alarmId: event.data.id,
+          fireAt: event.data.fireAt,
+          title: typeof event.data.title === "string" ? event.data.title : "Reminder",
+          body: typeof event.data.body === "string" ? event.data.body : "",
+          href: typeof event.data.href === "string" ? event.data.href : "/dashboard",
+        });
+        stopAllAlarmAudio();
+        if (hasFirebaseConfig) {
+          void markAlarmJobDismissed(uid, event.data.id, event.data.fireAt);
+        }
       }
       if (event.data?.type === "ALARM_DISMISSED" && event.data.id && event.data.fireAt) {
         markAlarmFired(event.data.id, event.data.fireAt);

@@ -1,4 +1,4 @@
-const CACHE_NAME = "tsa-v10";
+const CACHE_NAME = "tsa-v11";
 const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html"];
 const ALARM_DB_NAME = "tsa-alarms-v1";
 const ALARM_STORE = "meta";
@@ -18,6 +18,8 @@ let alarmTimer = null;
 /** @type {number[]} */
 let pulseTimerIds = [];
 let notificationsEnabled = true;
+/** @type {{ alarmId: string; fireAt: string; title: string; body: string; href: string; seenAt: number } | null} */
+let lastFiredAlert = null;
 
 /**
  * @typedef {{ id: string; fireAt: string; title: string; body: string; href?: string }} ScheduledAlarm
@@ -35,7 +37,7 @@ function openAlarmDb() {
 }
 
 /**
- * @returns {Promise<{ pendingAlarms: ScheduledAlarm[]; firedAlarmKeys: string[]; notificationsEnabled: boolean }>}
+ * @returns {Promise<{ pendingAlarms: ScheduledAlarm[]; firedAlarmKeys: string[]; notificationsEnabled: boolean; lastFiredAlert: { alarmId: string; fireAt: string; title: string; body: string; href: string; seenAt: number } | null }>}
  */
 async function readPersistedAlarmState() {
   try {
@@ -46,19 +48,33 @@ async function readPersistedAlarmState() {
       get.onsuccess = () => {
         const value = get.result;
         if (!value || typeof value !== "object") {
-          resolve({ pendingAlarms: [], firedAlarmKeys: [], notificationsEnabled: true });
+          resolve({
+            pendingAlarms: [],
+            firedAlarmKeys: [],
+            notificationsEnabled: true,
+            lastFiredAlert: null,
+          });
           return;
         }
         resolve({
           pendingAlarms: Array.isArray(value.pendingAlarms) ? value.pendingAlarms : [],
           firedAlarmKeys: Array.isArray(value.firedAlarmKeys) ? value.firedAlarmKeys : [],
           notificationsEnabled: value.notificationsEnabled !== false,
+          lastFiredAlert:
+            value.lastFiredAlert && typeof value.lastFiredAlert === "object"
+              ? value.lastFiredAlert
+              : null,
         });
       };
       get.onerror = () => reject(get.error);
     });
   } catch {
-    return { pendingAlarms: [], firedAlarmKeys: [], notificationsEnabled: true };
+    return {
+      pendingAlarms: [],
+      firedAlarmKeys: [],
+      notificationsEnabled: true,
+      lastFiredAlert: null,
+    };
   }
 }
 
@@ -72,6 +88,7 @@ async function persistAlarmState() {
           pendingAlarms,
           firedAlarmKeys: [...firedAlarmKeys],
           notificationsEnabled,
+          lastFiredAlert,
         },
         ALARM_STATE_KEY,
       );
@@ -87,6 +104,7 @@ async function hydrateAlarmState() {
   const saved = await readPersistedAlarmState();
   pendingAlarms = saved.pendingAlarms;
   notificationsEnabled = saved.notificationsEnabled;
+  lastFiredAlert = saved.lastFiredAlert;
   firedAlarmKeys.clear();
   for (const key of saved.firedAlarmKeys) {
     firedAlarmKeys.add(key);
@@ -173,6 +191,8 @@ function notificationData(alarm, key) {
     alarmId: alarm.id,
     fireAt: alarm.fireAt,
     alarmKey: key,
+    title: alarm.title || "Reminder",
+    body: alarm.body || "",
   };
 }
 
@@ -353,11 +373,26 @@ async function fireAlarm(alarm) {
 
   firedAlarmKeys.add(key);
   ringingAlarmKeys.add(key);
+  lastFiredAlert = {
+    alarmId: alarm.id,
+    fireAt: alarm.fireAt,
+    title: alarm.title || "Reminder",
+    body: alarm.body || "",
+    href: alarm.href || "/dashboard",
+    seenAt: Date.now(),
+  };
   await persistAlarmState();
 
   const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
   for (const client of clients) {
-    client.postMessage({ type: "ALARM_FIRED", id: alarm.id, fireAt: alarm.fireAt });
+    client.postMessage({
+      type: "ALARM_FIRED",
+      id: alarm.id,
+      fireAt: alarm.fireAt,
+      title: alarm.title,
+      body: alarm.body,
+      href: alarm.href || "/dashboard",
+    });
     client.postMessage({ type: "PLAY_ALARM_SOUND" });
   }
   pulseAlarmSoundToClients();
@@ -502,8 +537,51 @@ self.addEventListener("message", (event) => {
 self.addEventListener("notificationclick", (event) => {
   const data = event.notification.data || {};
   event.notification.close();
-  event.waitUntil(dismissAlarmNotification(data));
+  event.waitUntil(
+    (async () => {
+      await dismissAlarmNotification(data);
+      await openAlarmTarget(data);
+    })(),
+  );
 });
+
+/**
+ * @param {Record<string, string>} data
+ */
+async function openAlarmTarget(data) {
+  const href = typeof data.href === "string" && data.href.startsWith("/") ? data.href : "/dashboard";
+  const absoluteUrl = new URL(href, self.location.origin).href;
+  const openClients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+
+  const payload = {
+    type: "ALARM_OPENED",
+    id: data.alarmId,
+    fireAt: data.fireAt,
+    title: data.title || "Reminder",
+    body: data.body || "",
+    href,
+  };
+
+  for (const client of openClients) {
+    if ("focus" in client) {
+      await client.focus();
+    }
+    if ("navigate" in client) {
+      try {
+        await client.navigate(href);
+      } catch {
+        // Some browsers disallow navigate; fall through to postMessage.
+      }
+    }
+    client.postMessage(payload);
+    return;
+  }
+
+  const opened = await self.clients.openWindow(absoluteUrl);
+  if (opened) {
+    opened.postMessage(payload);
+  }
+}
 
 self.addEventListener("notificationclose", (event) => {
   const data = event.notification.data || {};

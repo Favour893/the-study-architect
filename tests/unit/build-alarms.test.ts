@@ -22,7 +22,7 @@ describe("build-alarms", () => {
     expect(alarms).toHaveLength(1);
     expect(alarms[0]?.title).toBe("Reminder");
     expect(alarms[0]?.body).toBe("Problem set");
-    expect(alarms[0]?.href).toBe("/logs");
+    expect(alarms[0]?.href).toBe("/logs?alert=todo&id=t1");
     expect(alarms[0]?.id).toBe("personal-todo:t1");
   });
 
@@ -36,6 +36,7 @@ describe("build-alarms", () => {
     const alarms = buildClassAlarms(timetable, now, 7);
     expect(alarms.some((alarm) => alarm.body.includes("Natural gas engineering"))).toBe(true);
     expect(alarms[0]?.title).toBe("Class starting now");
+    expect(alarms[0]?.href).toBe("/timetable?alert=class&id=Monday-10%3A00");
   });
 
   it("builds exam alarms when alarm is enabled", () => {
@@ -57,6 +58,7 @@ describe("build-alarms", () => {
     );
     expect(alarms).toHaveLength(1);
     expect(alarms[0]?.body).toBe("Thermodynamics");
+    expect(alarms[0]?.href).toBe("/timetable?alert=exam&id=row-1");
   });
 
   it("deduplicates merged alarms", () => {

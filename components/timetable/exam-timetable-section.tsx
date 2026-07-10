@@ -38,6 +38,7 @@ import {
 import { useAuth } from "@/providers/auth-provider";
 import { useToast } from "@/providers/toast-provider";
 import { ShimmerPanel } from "@/components/ui/shimmer";
+import { useAlertHighlight } from "@/lib/alarms/use-alert-highlight";
 
 type ExamTimetableSectionProps = {
   activeSemesterId: string | null;
@@ -104,6 +105,7 @@ export function ExamTimetableSection({
 }: ExamTimetableSectionProps) {
   const { user } = useAuth();
   const { pushToast } = useToast();
+  useAlertHighlight("exam");
   const [hydrated, setHydrated] = useState(false);
   const [columns, setColumns] = useState<ExamTimetableColumn[]>(defaultExamTimetableStorage().columns);
   const [rows, setRows] = useState<ExamTimetableRow[]>([]);
@@ -393,7 +395,11 @@ export function ExamTimetableSection({
                 </tr>
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="border-b border-app-border last:border-b-0">
+                  <tr
+                    key={row.id}
+                    data-alert-id={row.id}
+                    className="border-b border-app-border last:border-b-0"
+                  >
                     {columns.map((col) => (
                       <td key={col.id} className="px-2 py-1.5 align-top">
                         {renderCellInput(row, col)}

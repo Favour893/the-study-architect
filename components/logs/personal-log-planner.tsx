@@ -13,6 +13,7 @@ import {
   FORM_SECONDARY_BUTTON_CLASS,
 } from "@/lib/ui/form-styles";
 import { ShimmerPanel } from "@/components/ui/shimmer";
+import { useAlertHighlight } from "@/lib/alarms/use-alert-highlight";
 import { useToast } from "@/providers/toast-provider";
 import { PersonalTimetableSection } from "@/components/logs/personal-timetable-section";
 
@@ -50,6 +51,7 @@ function formatDueLabel(iso: string | null) {
 
 export function PersonalLogPlanner({ uid }: PersonalLogPlannerProps) {
   const { pushToast } = useToast();
+  useAlertHighlight("todo");
   const [savedNotes, setSavedNotes] = useState<PersonalNote[]>([]);
   const [todos, setTodos] = useState<PersonalTodo[]>([]);
   const [draftNoteTitle, setDraftNoteTitle] = useState("");
@@ -321,6 +323,7 @@ export function PersonalLogPlanner({ uid }: PersonalLogPlannerProps) {
                 return (
                   <li
                     key={todo.id}
+                    data-alert-id={todo.id}
                     className={`flex flex-wrap items-center gap-2 rounded-xl border border-app-border bg-panel px-3 py-2.5 ${
                       todo.done ? "opacity-70" : ""
                     }`}

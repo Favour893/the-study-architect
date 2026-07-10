@@ -31,6 +31,7 @@ import {
 } from "@/lib/ui/form-styles";
 import { ExamTimetableSection } from "@/components/timetable/exam-timetable-section";
 import { ShimmerTimetable } from "@/components/ui/shimmer";
+import { useAlertHighlight } from "@/lib/alarms/use-alert-highlight";
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const dayAccent: Record<string, string> = {
   Monday: "text-sky-700 dark:text-sky-300",
@@ -113,6 +114,7 @@ export default function TimetablePage() {
   const { user } = useAuth();
   const { activeSemesterId, isLoading: semesterLoading } = useSemester();
   const { pushToast } = useToast();
+  useAlertHighlight("class");
   const [courses, setCourses] = useState<Course[]>([]);
   const [coursesError, setCoursesError] = useState<string | null>(null);
   const [timetableStorageReady, setTimetableStorageReady] = useState(false);
@@ -638,6 +640,7 @@ export default function TimetablePage() {
           >
             <button
               type="button"
+              data-alert-id={block.entryKey}
               draggable
               onDragStart={(event) => {
                 event.dataTransfer.setData("text/plain", `${day}-${slot.key}`);

@@ -120,6 +120,15 @@ body {
   z-index: 61;
 }
 
+.tsa-alert-highlight {
+  position: relative;
+  z-index: 20;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 70%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 2px;
+  transition: box-shadow 0.2s ease, outline-color 0.2s ease;
+}
+
 /* Native form controls: avoid browser default white fields in dark mode */
 .dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
 .dark select,

@@ -6,6 +6,7 @@ import { getClientAuth } from "@/lib/firebase/auth";
 import { useSemester } from "@/providers/semester-provider";
 import { useAuth } from "@/providers/auth-provider";
 import { NotificationHeaderControl } from "@/components/alarms/notification-header-control";
+import { RecentAlertBanner } from "@/components/alarms/recent-alert-banner";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { SidebarNav, type NavItem } from "@/components/layout/sidebar-nav";
 import { UserProfileMenu } from "@/components/layout/user-profile-menu";
@@ -78,6 +79,7 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="h-dvh bg-app">
+      <RecentAlertBanner />
       <div className="flex h-full w-full">
         <SidebarNav items={navItemsWithAccess} />
         <main className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col">

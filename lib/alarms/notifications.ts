@@ -1,6 +1,7 @@
 import { hasAlarmFired, markAlarmFired } from "./fired-store";
 import { areAppNotificationsEnabled } from "./notification-preference";
 import { playAlarmSound, stopAlarmSound } from "./play-alarm-sound";
+import { saveRecentAlert } from "./alert-deep-link";
 import type { ScheduledAlarm } from "./types";
 
 const inFlightDeliveries = new Set<string>();
@@ -106,6 +107,13 @@ export async function deliverAlarm(alarm: ScheduledAlarm) {
 
   try {
     pulseAlarmSound();
+    saveRecentAlert({
+      alarmId: alarm.id,
+      fireAt: alarm.fireAt,
+      title: alarm.title,
+      body: alarm.body,
+      href: alarm.href || "/dashboard",
+    });
 
     const usedWorker = await showViaServiceWorker(alarm);
     if (usedWorker) {
@@ -119,6 +127,14 @@ export async function deliverAlarm(alarm: ScheduledAlarm) {
       icon: "/logo-mark.png",
       silent: false,
       requireInteraction: true,
+      data: {
+        href: alarm.href || "/dashboard",
+        alarmId: alarm.id,
+        fireAt: alarm.fireAt,
+        alarmKey: `${alarm.id}:${alarm.fireAt}`,
+        title: alarm.title,
+        body: alarm.body,
+      },
     });
     stopAllAlarmAudio();
     markAlarmFired(alarm.id, alarm.fireAt);
