@@ -117,10 +117,11 @@ export function RecentAlertBanner() {
   }
 
   function viewSource() {
+    const href = currentAlert.href || "/dashboard";
     markRecentAlertShown(currentAlert.alarmId, currentAlert.fireAt);
     clearRecentAlert();
     setAlert(null);
-    router.push(currentAlert.href || "/dashboard");
+    router.push(href);
   }
 
   return (
