@@ -25,7 +25,10 @@ export async function ensureFcmToken(): Promise<string | null> {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
       serviceWorkerRegistration: registration,
     });
-  } catch {
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("FCM token registration failed:", error);
+    }
     return null;
   }
 }

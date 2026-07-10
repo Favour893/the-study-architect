@@ -9,7 +9,7 @@ import {
 } from "@/lib/alarms/notification-preference";
 import { registerBackgroundAlarmWake } from "@/lib/alarms/scheduler";
 import { ShimmerButton } from "@/components/ui/shimmer";
-import { ensureFcmToken } from "@/lib/firebase/messaging";
+import { ensureFcmToken, hasFcmClientConfig } from "@/lib/firebase/messaging";
 import {
   ensureNotificationPermission,
   getNotificationPermissionState,
@@ -17,6 +17,8 @@ import {
   sendTestNotification,
   type NotificationPermissionState,
 } from "@/lib/alarms/notifications";
+import { useAuth } from "@/providers/auth-provider";
+import { syncAlarmDispatch } from "@/lib/data/alarm-dispatch";
 
 function isIosDevice() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -30,6 +32,7 @@ function isInstalledPwa() {
 }
 
 export function NotificationHeaderControl() {
+  const { user } = useAuth();
   const [permission, setPermission] = useState<NotificationPermissionState>("default");
   const [appEnabled, setAppEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -71,6 +74,22 @@ export function NotificationHeaderControl() {
 
   const needsIosInstall = isIosDevice() && !isInstalledPwa();
   const notificationsActive = hasNotificationPermission() && appEnabled;
+  const pushReady = hasFcmClientConfig();
+
+  async function syncPushRegistration(enabled: boolean) {
+    if (!user) {
+      return;
+    }
+    if (!enabled) {
+      const token = await ensureFcmToken();
+      await syncAlarmDispatch(user.uid, [], token);
+      return;
+    }
+    if (!hasNotificationPermission() || !areAppNotificationsEnabled()) {
+      return;
+    }
+    await ensureFcmToken();
+  }
 
   async function enableNotifications() {
     if (needsIosInstall) {
@@ -85,9 +104,10 @@ export function NotificationHeaderControl() {
       if (allowed) {
         setAppNotificationsEnabled(true);
         setAppEnabled(true);
-        notifyAlarmsChanged();
         await ensureFcmToken();
         await registerBackgroundAlarmWake();
+        await syncPushRegistration(true);
+        notifyAlarmsChanged();
         await sendTestNotification();
         setTestSent(true);
         setOpen(true);
@@ -116,7 +136,11 @@ export function NotificationHeaderControl() {
       if (nextEnabled) {
         await ensureFcmToken();
         await registerBackgroundAlarmWake();
+        await syncPushRegistration(true);
+      } else {
+        await syncPushRegistration(false);
       }
+      notifyAlarmsChanged();
     } finally {
       setBusy(false);
     }
@@ -215,6 +239,11 @@ export function NotificationHeaderControl() {
                       ? "Alarms ring when the app is closed. Tap a notification to turn it off."
                       : "Alarms are paused on this device."}
                   </p>
+                  {appEnabled && !pushReady ? (
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                      Background push is not configured on the server yet (missing VAPID key).
+                    </p>
+                  ) : null}
                 </div>
                 <span
                   className={`relative h-5 w-9 shrink-0 rounded-full transition ${

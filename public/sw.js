@@ -1,4 +1,4 @@
-const CACHE_NAME = "tsa-v9";
+const CACHE_NAME = "tsa-v10";
 const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html"];
 const ALARM_DB_NAME = "tsa-alarms-v1";
 const ALARM_STORE = "meta";
@@ -511,4 +511,57 @@ self.addEventListener("notificationclose", (event) => {
     return;
   }
   event.waitUntil(dismissAlarmNotification(data));
+});
+
+self.addEventListener("push", (event) => {
+  if (!notificationsEnabled) {
+    return;
+  }
+  event.waitUntil(handlePushEvent(event));
+});
+
+/**
+ * @param {PushEvent} event
+ */
+async function handlePushEvent(event) {
+  /** @type {Record<string, string>} */
+  let data = {};
+  try {
+    const payload = event.data ? event.data.json() : {};
+    if (payload && typeof payload === "object") {
+      const nested = payload.data;
+      data =
+        nested && typeof nested === "object"
+          ? Object.fromEntries(
+              Object.entries(nested).map(([key, value]) => [key, String(value ?? "")]),
+            )
+          : Object.fromEntries(
+              Object.entries(payload).map(([key, value]) => [key, String(value ?? "")]),
+            );
+    }
+  } catch {
+    return;
+  }
+
+  const alarmId = data.alarmId;
+  const fireAt = data.fireAt;
+  if (!alarmId || !fireAt) {
+    return;
+  }
+
+  const key = data.alarmKey || `${alarmId}:${fireAt}`;
+  if (firedAlarmKeys.has(key)) {
+    return;
+  }
+
+  /** @type {ScheduledAlarm} */
+  const alarm = {
+    id: alarmId,
+    fireAt,
+    title: data.title || "Reminder",
+    body: data.body || "",
+    href: data.href || "/dashboard",
+  };
+
+  await fireAlarm(alarm);
 });

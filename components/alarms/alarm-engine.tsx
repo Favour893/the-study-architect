@@ -19,6 +19,7 @@ import {
   scheduleAlarmTimers,
   syncAlarmsToServiceWorker,
 } from "@/lib/alarms/scheduler";
+import { requestServerAlarmDispatch } from "@/lib/alarms/server-dispatch";
 import { markAlarmFired } from "@/lib/alarms/fired-store";
 import { canUseNotifications, deliverAlarm, stopAllAlarmAudio } from "@/lib/alarms/notifications";
 import type { ScheduledAlarm } from "@/lib/alarms/types";
@@ -31,6 +32,7 @@ import { fetchExamTimetableFromFirestore } from "@/lib/data/exam-timetable";
 import { getPersonalLog } from "@/lib/data/personal-log";
 import { loadExamTimetableLocal } from "@/lib/exam-timetable-storage";
 import { hasFirebaseConfig } from "@/lib/firebase/client";
+import { getClientAuth } from "@/lib/firebase/auth";
 import { ensureFcmToken } from "@/lib/firebase/messaging";
 import { TIMETABLE_LEGACY_STORAGE_KEY, timetableStorageKeyForUserSemester } from "@/lib/timetable-storage";
 import { useAuth } from "@/providers/auth-provider";
@@ -115,6 +117,22 @@ export function AlarmEngine() {
       return token;
     }
 
+    async function dispatchServerAlarms() {
+      if (!hasFirebaseConfig || !canUseNotifications()) {
+        return;
+      }
+      try {
+        const firebaseUser = getClientAuth().currentUser;
+        if (!firebaseUser) {
+          return;
+        }
+        const idToken = await firebaseUser.getIdToken();
+        await requestServerAlarmDispatch(idToken);
+      } catch {
+        // Server push is best-effort.
+      }
+    }
+
     async function pushAlarmsToBackground(alarms: ScheduledAlarm[]) {
       alarmsRef.current = alarms;
       saveCachedAlarms(alarms);
@@ -154,6 +172,7 @@ export function AlarmEngine() {
         await runAlarmSweep(alarms);
       }
       await pushAlarmsToBackground(alarms);
+      void dispatchServerAlarms();
       clearTimers();
       clearTimers = scheduleAlarmTimers(alarms, (alarm) => {
         void deliverAlarm(alarm);
@@ -184,6 +203,7 @@ export function AlarmEngine() {
       void flushAlarmScheduleToServiceWorker(canUseNotifications() ? alarms : []);
       if (hasFirebaseConfig) {
         void syncAlarmDispatch(uid, canUseNotifications() ? alarms : [], fcmTokenRef.current);
+        void dispatchServerAlarms();
       }
     }
 

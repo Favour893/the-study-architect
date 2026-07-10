@@ -1,0 +1,23 @@
+name: Dispatch alarms
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch due alarm jobs
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$PRODUCTION_URL" ]; then
+            echo "Skipping: set CRON_SECRET and PRODUCTION_URL repository secrets."
+            exit 0
+          fi
+          curl -fsS \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${PRODUCTION_URL%/}/api/cron/dispatch-alarms"

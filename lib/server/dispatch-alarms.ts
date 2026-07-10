@@ -1,3 +1,4 @@
+import type { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { getAdminDb } from "./firebase-admin";
 
@@ -11,15 +12,33 @@ type AlarmJob = {
   notificationsEnabled?: boolean;
 };
 
-export async function dispatchDueAlarmJobs(nowIso = new Date().toISOString()) {
-  const db = getAdminDb();
-  const snapshot = await db.collectionGroup("alarmJobs").where("fired", "==", false).limit(250).get();
+async function sendAlarmPush(fcmToken: string, job: AlarmJob) {
+  const alarmKey = `${job.alarmId}:${job.fireAt}`;
+  await getMessaging().send({
+    token: fcmToken,
+    data: {
+      alarmId: job.alarmId,
+      fireAt: job.fireAt,
+      title: job.title,
+      body: job.body,
+      href: job.href || "/dashboard",
+      alarmKey,
+    },
+    webpush: {
+      headers: {
+        Urgency: "high",
+      },
+    },
+  });
+}
 
+async function dispatchJobDocs(jobDocs: QueryDocumentSnapshot[], nowIso: string) {
+  const db = getAdminDb();
   let checked = 0;
   let sent = 0;
   let skipped = 0;
 
-  for (const jobDoc of snapshot.docs) {
+  for (const jobDoc of jobDocs) {
     checked += 1;
     const job = jobDoc.data() as AlarmJob;
     if (!job.notificationsEnabled || !job.alarmId || !job.fireAt || !job.title) {
@@ -43,31 +62,8 @@ export async function dispatchDueAlarmJobs(nowIso = new Date().toISOString()) {
       continue;
     }
 
-    const alarmKey = `${job.alarmId}:${job.fireAt}`;
     try {
-      await getMessaging().send({
-        token: fcmToken,
-        notification: {
-          title: job.title,
-          body: `${job.body}\n\nTap or swipe away to turn off.`,
-        },
-        data: {
-          alarmId: job.alarmId,
-          fireAt: job.fireAt,
-          href: job.href || "/dashboard",
-          alarmKey,
-        },
-        webpush: {
-          headers: {
-            Urgency: "high",
-          },
-          notification: {
-            tag: alarmKey,
-            requireInteraction: true,
-            icon: "/logo-mark.png",
-          },
-        },
-      });
+      await sendAlarmPush(fcmToken, job);
       await jobDoc.ref.set(
         {
           fired: true,
@@ -82,4 +78,16 @@ export async function dispatchDueAlarmJobs(nowIso = new Date().toISOString()) {
   }
 
   return { checked, sent, skipped };
+}
+
+export async function dispatchDueAlarmJobs(nowIso = new Date().toISOString()) {
+  const db = getAdminDb();
+  const snapshot = await db.collectionGroup("alarmJobs").where("fired", "==", false).limit(250).get();
+  return dispatchJobDocs(snapshot.docs, nowIso);
+}
+
+export async function dispatchDueAlarmJobsForUser(uid: string, nowIso = new Date().toISOString()) {
+  const db = getAdminDb();
+  const snapshot = await db.collection(`users/${uid}/alarmJobs`).where("fired", "==", false).limit(50).get();
+  return dispatchJobDocs(snapshot.docs, nowIso);
 }
