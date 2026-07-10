@@ -18,7 +18,7 @@ import {
   type NotificationPermissionState,
 } from "@/lib/alarms/notifications";
 import { useAuth } from "@/providers/auth-provider";
-import { syncAlarmDispatch } from "@/lib/data/alarm-dispatch";
+import { syncAlarmDispatch, saveAlarmDispatchMeta } from "@/lib/data/alarm-dispatch";
 
 function isIosDevice() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -81,14 +81,18 @@ export function NotificationHeaderControl() {
       return;
     }
     if (!enabled) {
-      const token = await ensureFcmToken();
-      await syncAlarmDispatch(user.uid, [], token);
+      await saveAlarmDispatchMeta(user.uid, { notificationsEnabled: false });
+      await syncAlarmDispatch(user.uid, [], null);
       return;
     }
     if (!hasNotificationPermission() || !areAppNotificationsEnabled()) {
       return;
     }
-    await ensureFcmToken();
+    const token = await ensureFcmToken();
+    await saveAlarmDispatchMeta(user.uid, {
+      fcmToken: token,
+      notificationsEnabled: true,
+    });
   }
 
   async function enableNotifications() {

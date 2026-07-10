@@ -26,6 +26,14 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Dispatch failed";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    console.error("[dispatch-alarms]", message, error);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: message,
+        timestamp: new Date().toISOString(),
+      },
+      { status: 500 },
+    );
   }
 }

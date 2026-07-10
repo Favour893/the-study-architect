@@ -24,6 +24,23 @@ function alarmDispatchMetaPath(uid: string) {
   return `users/${uid}/alarmDispatch/meta`;
 }
 
+export async function saveAlarmDispatchMeta(
+  uid: string,
+  options: { fcmToken?: string | null; notificationsEnabled?: boolean },
+) {
+  const db = getDb();
+  const payload: Record<string, unknown> = {
+    updatedAt: serverTimestamp(),
+  };
+  if (typeof options.notificationsEnabled === "boolean") {
+    payload.notificationsEnabled = options.notificationsEnabled;
+  }
+  if (options.fcmToken) {
+    payload.fcmToken = options.fcmToken;
+  }
+  await setDoc(doc(db, alarmDispatchMetaPath(uid)), payload, { merge: true });
+}
+
 export async function syncAlarmDispatch(
   uid: string,
   alarms: ScheduledAlarm[],
@@ -34,15 +51,7 @@ export async function syncAlarmDispatch(
   const firedKeys = new Set(listFiredAlarmKeys());
   const scheduledAlarms = notificationsEnabled ? alarms : [];
 
-  await setDoc(
-    doc(db, alarmDispatchMetaPath(uid)),
-    {
-      fcmToken,
-      notificationsEnabled,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  );
+  await saveAlarmDispatchMeta(uid, { fcmToken, notificationsEnabled });
 
   const jobsRef = collection(db, alarmJobsPath(uid));
   const existing = await getDocs(jobsRef);
