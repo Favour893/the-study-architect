@@ -33,6 +33,23 @@ function isInstalledPwa() {
   );
 }
 
+function ToggleThumb({ on }: { on: boolean }) {
+  return (
+    <span
+      className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+        on ? "bg-app-accent" : "bg-app-border"
+      }`}
+      aria-hidden
+    >
+      <span
+        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition ${
+          on ? "left-4" : "left-0.5"
+        }`}
+      />
+    </span>
+  );
+}
+
 export function NotificationHeaderControl() {
   const { user } = useAuth();
   const [permission, setPermission] = useState<NotificationPermissionState>("default");
@@ -271,102 +288,127 @@ export function NotificationHeaderControl() {
     );
   }
 
+  const statusLabel =
+    permission === "denied"
+      ? "Notifications blocked"
+      : notificationsActive
+        ? "Notifications on"
+        : "Notifications off";
+
   return (
-    <div className="relative shrink-0" ref={wrapRef}>
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm ${
-          notificationsActive
-            ? "border-emerald-400/50 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-950/60"
-            : "border-amber-400/50 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60"
-        }`}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        title={
-          permission === "denied"
-            ? "Notifications blocked"
-            : notificationsActive
-              ? "Notifications on"
-              : "Notifications off"
-        }
-      >
-        {notificationsActive ? (
-          <Bell className="h-4 w-4 shrink-0" />
-        ) : (
-          <BellOff className="h-4 w-4 shrink-0" />
-        )}
-        <span className="hidden sm:inline">
-          {permission === "denied"
-            ? "Notifications blocked"
-            : notificationsActive
-              ? "Notifications on"
-              : "Notifications off"}
-        </span>
-      </button>
+    <div className="relative z-20 shrink-0" ref={wrapRef}>
+      <div className="flex items-center gap-1.5">
+        {/* Large screens: always-visible enable/disable toggle */}
+        {permission === "granted" ? (
+          <ShimmerButton
+            type="button"
+            loading={busy}
+            onClick={() => void toggleNotifications()}
+            className={`hidden h-9 items-center gap-2 rounded-lg border px-2.5 text-xs font-medium transition sm:inline-flex sm:px-3 sm:text-sm ${
+              notificationsActive
+                ? "border-emerald-400/50 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-950/60"
+                : "border-amber-400/50 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60"
+            }`}
+            aria-pressed={appEnabled}
+            title={appEnabled ? "Turn notifications off" : "Turn notifications on"}
+          >
+            {notificationsActive ? (
+              <Bell className="h-4 w-4 shrink-0" />
+            ) : (
+              <BellOff className="h-4 w-4 shrink-0" />
+            )}
+            <span>{appEnabled ? "On" : "Off"}</span>
+            <ToggleThumb on={appEnabled} />
+          </ShimmerButton>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition sm:px-3 sm:text-sm ${
+            permission === "denied"
+              ? "border-amber-400/50 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60"
+              : notificationsActive
+                ? "border-emerald-400/50 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-950/60"
+                : "border-amber-400/50 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200 dark:hover:bg-amber-950/60"
+          }`}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          title={statusLabel}
+        >
+          {notificationsActive ? (
+            <Bell className="h-4 w-4 shrink-0" />
+          ) : (
+            <BellOff className="h-4 w-4 shrink-0" />
+          )}
+          {/* Mobile: status text. Desktop: details affordance when toggle is already shown */}
+          <span className="sm:hidden">{statusLabel}</span>
+          <span className="hidden sm:inline">{permission === "granted" ? "Details" : statusLabel}</span>
+        </button>
+      </div>
 
       {open ? (
-        <div className="absolute right-0 top-full z-50 mt-1.5 w-[min(100vw-1.5rem,18rem)] rounded-xl border border-app-border bg-panel p-3 shadow-lg">
+        <div className="absolute right-0 top-full z-50 mt-1.5 w-[min(100vw-1.5rem,20rem)] rounded-xl border border-app-border bg-panel p-3 shadow-lg">
           {permission === "granted" ? (
             <>
+              {/* Mobile: toggle lives in the panel; desktop already has the header toggle */}
               <ShimmerButton
                 type="button"
                 loading={busy}
                 onClick={() => void toggleNotifications()}
-                className="flex w-full items-center justify-between gap-3 rounded-lg border border-app-border bg-app-muted px-3 py-2.5 text-left transition hover:bg-app-accent-soft disabled:opacity-60"
+                className="flex w-full items-center justify-between gap-3 rounded-lg border border-app-border bg-app-muted px-3 py-2.5 text-left transition hover:bg-app-accent-soft disabled:opacity-60 sm:hidden"
                 aria-pressed={appEnabled}
               >
                 <div>
                   <p className="text-sm font-medium text-app-fg">Notifications</p>
                   <p className="mt-0.5 text-xs text-app-subtle">
-                    {appEnabled
-                      ? "When closed, your phone shows a system alert. Custom chimes play while TSA is open."
-                      : "Alarms are paused on this device."}
+                    {appEnabled ? "Alarms are on for this device." : "Alarms are paused on this device."}
                   </p>
-                  {appEnabled && !pushReady ? (
-                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                      Background push is not configured on the server yet (missing VAPID key).
-                    </p>
-                  ) : null}
-                  {appEnabled && pushReady && pushTokenReady === false ? (
-                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                      Push token not registered on this device yet. Toggle notifications off/on, or allow
-                      notifications again.
-                    </p>
-                  ) : null}
-                  {appEnabled && pushTokenReady === true ? (
-                    <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
-                      Background push registered on this device.
-                    </p>
-                  ) : null}
-                  {appEnabled && dispatcherActive === false ? (
-                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                      Closed-app dispatcher is not running. Set a 1-minute cron (e.g. cron-job.org) to
-                      GET https://the-study-architect.vercel.app/api/cron/dispatch-alarms with header
-                      Authorization: Bearer &lt;CRON_SECRET from Vercel&gt;.
-                      {pendingJobs !== null ? ` ${pendingJobs} pending job(s) waiting.` : ""}
-                    </p>
-                  ) : null}
-                  {appEnabled && dispatcherActive === true ? (
-                    <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
-                      Closed-app dispatcher is active.
-                      {pendingJobs !== null ? ` ${pendingJobs} pending job(s).` : ""}
-                    </p>
-                  ) : null}
                 </div>
-                <span
-                  className={`relative h-5 w-9 shrink-0 rounded-full transition ${
-                    appEnabled ? "bg-app-accent" : "bg-app-border"
-                  }`}
-                  aria-hidden
-                >
-                  <span
-                    className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition ${
-                      appEnabled ? "left-4" : "left-0.5"
-                    }`}
-                  />
-                </span>
+                <ToggleThumb on={appEnabled} />
               </ShimmerButton>
+
+              <div className="mt-0 hidden sm:block">
+                <p className="text-sm font-medium text-app-fg">Notification details</p>
+                <p className="mt-0.5 text-xs text-app-subtle">
+                  {appEnabled
+                    ? "When closed, your phone shows a system alert. Custom chimes play while TSA is open."
+                    : "Alarms are paused on this device. Use the On/Off toggle to resume."}
+                </p>
+              </div>
+
+              <div className="mt-2 space-y-1 sm:mt-2">
+                {appEnabled && !pushReady ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Background push is not configured on the server yet (missing VAPID key).
+                  </p>
+                ) : null}
+                {appEnabled && pushReady && pushTokenReady === false ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Push token not registered on this device yet. Toggle notifications off/on, or allow
+                    notifications again.
+                  </p>
+                ) : null}
+                {appEnabled && pushTokenReady === true ? (
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                    Background push registered on this device.
+                  </p>
+                ) : null}
+                {appEnabled && dispatcherActive === false ? (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Closed-app dispatcher is not running. Set a 1-minute cron (e.g. cron-job.org) to GET
+                    https://the-study-architect.vercel.app/api/cron/dispatch-alarms with header
+                    Authorization: Bearer &lt;CRON_SECRET from Vercel&gt;.
+                    {pendingJobs !== null ? ` ${pendingJobs} pending job(s) waiting.` : ""}
+                  </p>
+                ) : null}
+                {appEnabled && dispatcherActive === true ? (
+                  <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                    Closed-app dispatcher is active.
+                    {pendingJobs !== null ? ` ${pendingJobs} pending job(s).` : ""}
+                  </p>
+                ) : null}
+              </div>
 
               {appEnabled ? (
                 <>

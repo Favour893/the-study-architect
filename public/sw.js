@@ -38,7 +38,7 @@ try {
   console.warn("[tsa-sw] FCM init skipped:", error);
 }
 
-const CACHE_NAME = "tsa-v17";
+const CACHE_NAME = "tsa-v18";
 const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html", "/sounds/clock-chime.mp3"];
 const ALARM_DB_NAME = "tsa-alarms-v1";
 const ALARM_STORE = "meta";

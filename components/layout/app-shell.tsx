@@ -83,7 +83,7 @@ export function AppShell({ children }: AppShellProps) {
       <div className="flex h-full w-full">
         <SidebarNav items={navItemsWithAccess} />
         <main className="flex h-full min-h-0 min-w-0 w-full flex-1 flex-col">
-          <header className="relative z-10 flex h-14 min-w-0 shrink-0 items-center justify-between gap-2 border-b border-app-border bg-panel/90 px-3 shadow-sm backdrop-blur md:px-6">
+          <header className="relative z-20 flex h-14 min-w-0 shrink-0 items-center justify-between gap-2 overflow-visible border-b border-app-border bg-panel/90 px-3 shadow-sm backdrop-blur md:px-6">
             <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-sky-500 via-violet-500 to-amber-400" />
             <div className="min-w-0 pr-2">
               <p className="bg-gradient-to-r from-app-accent via-app-violet to-app-teal bg-clip-text text-xs font-semibold text-transparent">

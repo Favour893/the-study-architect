@@ -2,11 +2,11 @@ let activeAudio: HTMLAudioElement | null = null;
 let activePlaybackId = 0;
 let loopTimer: number | null = null;
 
-/** Mixkit — Antique wood chime bell ring (royalty-free Mixkit License). */
+/** Mixkit — Classic melodic clock strike (royalty-free Mixkit License). */
 const CHIME_SRC = "/sounds/clock-chime.mp3";
 /** Replay so it keeps attention like a clock finishing its hour. */
-const CHIME_LOOPS = 2;
-const LOOP_GAP_MS = 600;
+const CHIME_LOOPS = 3;
+const LOOP_GAP_MS = 500;
 
 function clearLoopTimer() {
   if (loopTimer !== null) {
@@ -52,7 +52,7 @@ function playOnce(): Promise<void> {
 }
 
 /**
- * Soft antique wood clock chime (Mixkit).
+ * Classic melodic clock strike (Mixkit).
  * Only plays while the app/PWA has an open client — closed-app uses the OS notification sound.
  */
 export async function playAlarmSound() {
