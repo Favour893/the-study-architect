@@ -71,7 +71,8 @@ export async function syncAlarmDispatch(
       body: alarm.body,
       href: alarm.href || "/dashboard",
       fired: false,
-      notificationsEnabled,
+      cancelled: false,
+      notificationsEnabled: true,
       updatedAt: serverTimestamp(),
     });
   }
@@ -81,8 +82,13 @@ export async function syncAlarmDispatch(
       continue;
     }
     const data = snapshot.data();
+    const fireMs = new Date(String(data.fireAt || "")).getTime();
+    const isStalePast =
+      data.fired === true ||
+      data.cancelled === true ||
+      (!Number.isNaN(fireMs) && fireMs < nowMs - 24 * 60 * 60 * 1000);
+
     if (!notificationsEnabled) {
-      // Keep jobs but mark disabled so a bad toggle/race does not erase the schedule.
       batch.set(
         snapshot.ref,
         { notificationsEnabled: false, updatedAt: serverTimestamp() },
@@ -90,17 +96,42 @@ export async function syncAlarmDispatch(
       );
       continue;
     }
-    const fireMs = new Date(String(data.fireAt || "")).getTime();
-    const isFutureUnfired =
-      data.fired !== true && !Number.isNaN(fireMs) && fireMs > nowMs - 60_000;
-    // Empty sync lists often mean a transient load failure — do not wipe future jobs.
-    if (scheduledAlarms.length === 0 && isFutureUnfired) {
-      continue;
+
+    // Never remove future unfired jobs on sync — partial loads (todos-only, etc.)
+    // previously wiped exam/class jobs and broke closed-app delivery.
+    if (isStalePast) {
+      batch.delete(snapshot.ref);
     }
-    batch.delete(snapshot.ref);
   }
 
   await batch.commit();
+}
+
+/** Re-enable every unfired job after the user turns notifications back on. */
+export async function reenableAlarmJobs(uid: string) {
+  const db = getDb();
+  const snapshot = await getDocs(collection(db, alarmJobsPath(uid)));
+  const batch = writeBatch(db);
+  let ops = 0;
+  for (const job of snapshot.docs) {
+    const data = job.data();
+    if (data.fired === true) {
+      continue;
+    }
+    batch.set(
+      job.ref,
+      {
+        notificationsEnabled: true,
+        cancelled: false,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    ops += 1;
+  }
+  if (ops > 0) {
+    await batch.commit();
+  }
 }
 
 export async function mergeFiredKeysFromAlarmJobs(uid: string) {

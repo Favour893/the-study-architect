@@ -58,12 +58,16 @@ export async function POST(request: Request) {
 
     const origin = appOrigin(request);
     const title = "TSA background push works";
-    const body =
-      "Close the PWA fully — this was delivered by FCM to your service worker.";
+    const body = "Close the PWA fully — this was delivered by FCM.";
     const alarmKey = `test-push:${Date.now()}`;
+    const icon = `${origin}/logo-mark.png`;
 
     await getMessaging().send({
       token: fcmToken,
+      notification: {
+        title,
+        body,
+      },
       data: {
         alarmId: "test-push",
         fireAt: new Date().toISOString(),
@@ -75,7 +79,16 @@ export async function POST(request: Request) {
       webpush: {
         headers: {
           Urgency: "high",
-          TTL: "120",
+          TTL: "86400",
+        },
+        notification: {
+          title,
+          body,
+          icon,
+          badge: icon,
+          tag: alarmKey,
+          requireInteraction: true,
+          silent: false,
         },
         fcmOptions: {
           link: `${origin}/dashboard`,

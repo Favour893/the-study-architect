@@ -9,6 +9,7 @@ type AlarmJob = {
   body: string;
   href?: string;
   fired?: boolean;
+  cancelled?: boolean;
   notificationsEnabled?: boolean;
 };
 
@@ -31,13 +32,18 @@ async function sendAlarmPush(fcmToken: string, job: AlarmJob) {
   const title = String(job.title || "Reminder");
   const body = `${String(job.body ?? "")}\n\nTap or swipe away to turn off.`.trim();
   const origin = appOrigin();
+  const icon = `${origin}/logo-mark.png`;
   const href = String(job.href || "/dashboard");
   const link = href.startsWith("http") ? href : `${origin}${href.startsWith("/") ? href : `/${href}`}`;
   getAdminDb();
-  // Data-only: the PWA service worker must show the notification.
-  // This is more reliable for installed PWAs than relying on the browser auto-display path.
+  // Include a notification payload so Android/Chrome can display even if the SW handler fails.
+  // Data payload lets the SW deep-link / play the in-app chime when a client is open.
   await getMessaging().send({
     token: fcmToken,
+    notification: {
+      title,
+      body,
+    },
     data: {
       alarmId: String(job.alarmId),
       fireAt: String(job.fireAt),
@@ -49,7 +55,16 @@ async function sendAlarmPush(fcmToken: string, job: AlarmJob) {
     webpush: {
       headers: {
         Urgency: "high",
-        TTL: "300",
+        TTL: "86400",
+      },
+      notification: {
+        title,
+        body,
+        icon,
+        badge: icon,
+        tag: alarmKey,
+        requireInteraction: true,
+        silent: false,
       },
       fcmOptions: {
         link,
@@ -97,7 +112,7 @@ async function dispatchJobDocs(jobDocs: QueryDocumentSnapshot[], nowIso: string)
   for (const jobDoc of jobDocs) {
     checked += 1;
     const job = jobDoc.data() as AlarmJob;
-    if (!job.alarmId || !job.fireAt || !job.title) {
+    if (!job.alarmId || !job.fireAt || !job.title || job.cancelled === true) {
       skipped += 1;
       continue;
     }
@@ -116,9 +131,8 @@ async function dispatchJobDocs(jobDocs: QueryDocumentSnapshot[], nowIso: string)
     const meta = await db.doc(`users/${uid}/alarmDispatch/meta`).get();
     const metaData = meta.exists ? meta.data() : undefined;
     const fcmToken = metaData?.fcmToken as string | undefined;
-    const metaEnabled = metaData?.notificationsEnabled !== false;
-    // Prefer user meta over a possibly stale per-job flag.
-    if (!metaEnabled || job.notificationsEnabled === false) {
+    // Meta is the only enable switch — ignore stale per-job notificationsEnabled flags.
+    if (metaData?.notificationsEnabled === false) {
       skipped += 1;
       continue;
     }
@@ -152,14 +166,48 @@ async function dispatchJobDocs(jobDocs: QueryDocumentSnapshot[], nowIso: string)
   return { checked, due, waiting, sent, skipped, errors };
 }
 
+export async function writeDispatchHeartbeat(result: Record<string, unknown>) {
+  const db = getAdminDb();
+  await db.doc("system/alarmDispatchHeartbeat").set(
+    {
+      ...result,
+      updatedAt: new Date().toISOString(),
+    },
+    { merge: true },
+  );
+}
+
+export async function readDispatchHeartbeat() {
+  const db = getAdminDb();
+  const snap = await db.doc("system/alarmDispatchHeartbeat").get();
+  if (!snap.exists) {
+    return null;
+  }
+  return snap.data() as {
+    updatedAt?: string;
+    sent?: number;
+    due?: number;
+    waiting?: number;
+    checked?: number;
+    ok?: boolean;
+  };
+}
+
 export async function dispatchDueAlarmJobs(nowIso = new Date().toISOString()) {
   const loaded = await loadDueAlarmJobDocs();
   const result = await dispatchJobDocs(loaded.docs, nowIso);
-  return {
+  const payload = {
     ...result,
+    ok: true,
     source: loaded.source,
     fallbackError: "fallbackError" in loaded ? loaded.fallbackError : undefined,
   };
+  try {
+    await writeDispatchHeartbeat(payload);
+  } catch {
+    // Heartbeat is best-effort diagnostics.
+  }
+  return payload;
 }
 
 export async function dispatchDueAlarmJobsForUser(uid: string, nowIso = new Date().toISOString()) {

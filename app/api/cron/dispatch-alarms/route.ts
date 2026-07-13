@@ -20,7 +20,6 @@ export async function GET(request: Request) {
   try {
     const result = await dispatchDueAlarmJobs();
     return NextResponse.json({
-      ok: true,
       ...result,
       timestamp: new Date().toISOString(),
     });

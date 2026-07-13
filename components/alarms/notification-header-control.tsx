@@ -18,7 +18,7 @@ import {
   type NotificationPermissionState,
 } from "@/lib/alarms/notifications";
 import { useAuth } from "@/providers/auth-provider";
-import { syncAlarmDispatch, saveAlarmDispatchMeta } from "@/lib/data/alarm-dispatch";
+import { syncAlarmDispatch, saveAlarmDispatchMeta, reenableAlarmJobs } from "@/lib/data/alarm-dispatch";
 import { requestTestPush } from "@/lib/alarms/server-dispatch";
 import { getClientAuth } from "@/lib/firebase/auth";
 
@@ -42,6 +42,8 @@ export function NotificationHeaderControl() {
   const [testSent, setTestSent] = useState(false);
   const [testMessage, setTestMessage] = useState<string | null>(null);
   const [pushTokenReady, setPushTokenReady] = useState<boolean | null>(null);
+  const [dispatcherActive, setDispatcherActive] = useState<boolean | null>(null);
+  const [pendingJobs, setPendingJobs] = useState<number | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,6 +74,48 @@ export function NotificationHeaderControl() {
     return () => document.removeEventListener("mousedown", handlePointer);
   }, [open]);
 
+  useEffect(() => {
+    if (!open || !user) {
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const firebaseUser = getClientAuth().currentUser;
+        if (!firebaseUser) {
+          return;
+        }
+        const idToken = await firebaseUser.getIdToken();
+        const response = await fetch("/api/alarms/dispatch-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken }),
+        });
+        if (!response.ok || cancelled) {
+          return;
+        }
+        const data = (await response.json()) as {
+          dispatcherActive?: boolean;
+          pendingJobs?: number;
+          hasFcmToken?: boolean;
+        };
+        if (cancelled) {
+          return;
+        }
+        setDispatcherActive(Boolean(data.dispatcherActive));
+        setPendingJobs(typeof data.pendingJobs === "number" ? data.pendingJobs : null);
+        if (typeof data.hasFcmToken === "boolean") {
+          setPushTokenReady(data.hasFcmToken);
+        }
+      } catch {
+        // Ignore status failures.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user]);
+
   if (permission === "unsupported") {
     return null;
   }
@@ -99,6 +143,11 @@ export function NotificationHeaderControl() {
       fcmToken: token,
       notificationsEnabled: true,
     });
+    try {
+      await reenableAlarmJobs(user.uid);
+    } catch {
+      // Best-effort.
+    }
   }
 
   async function enableNotifications() {
@@ -288,6 +337,20 @@ export function NotificationHeaderControl() {
                   {appEnabled && pushTokenReady === true ? (
                     <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
                       Background push registered on this device.
+                    </p>
+                  ) : null}
+                  {appEnabled && dispatcherActive === false ? (
+                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                      Closed-app dispatcher is not running. Set a 1-minute cron (e.g. cron-job.org) to
+                      GET https://the-study-architect.vercel.app/api/cron/dispatch-alarms with header
+                      Authorization: Bearer &lt;CRON_SECRET from Vercel&gt;.
+                      {pendingJobs !== null ? ` ${pendingJobs} pending job(s) waiting.` : ""}
+                    </p>
+                  ) : null}
+                  {appEnabled && dispatcherActive === true ? (
+                    <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-300">
+                      Closed-app dispatcher is active.
+                      {pendingJobs !== null ? ` ${pendingJobs} pending job(s).` : ""}
                     </p>
                   ) : null}
                 </div>

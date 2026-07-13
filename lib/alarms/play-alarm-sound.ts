@@ -2,10 +2,11 @@ let activeAudio: HTMLAudioElement | null = null;
 let activePlaybackId = 0;
 let loopTimer: number | null = null;
 
-const CHIME_SRC = "/sounds/clock-chime.wav";
-/** Replay the chime a couple times so it keeps attention like a clock. */
+/** Mixkit — Antique wood chime bell ring (royalty-free Mixkit License). */
+const CHIME_SRC = "/sounds/clock-chime.mp3";
+/** Replay so it keeps attention like a clock finishing its hour. */
 const CHIME_LOOPS = 2;
-const LOOP_GAP_MS = 900;
+const LOOP_GAP_MS = 600;
 
 function clearLoopTimer() {
   if (loopTimer !== null) {
@@ -51,7 +52,7 @@ function playOnce(): Promise<void> {
 }
 
 /**
- * Soft chiming-clock alarm (Westminster-style motif from /sounds/clock-chime.wav).
+ * Soft antique wood clock chime (Mixkit).
  * Only plays while the app/PWA has an open client — closed-app uses the OS notification sound.
  */
 export async function playAlarmSound() {

@@ -2,7 +2,7 @@ name: Dispatch alarms
 
 on:
   schedule:
-    - cron: "* * * * *"
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -15,8 +15,8 @@ jobs:
           PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
         run: |
           if [ -z "$CRON_SECRET" ] || [ -z "$PRODUCTION_URL" ]; then
-            echo "Skipping: set CRON_SECRET and PRODUCTION_URL repository secrets."
-            exit 0
+            echo "::error::Set GitHub repository secrets CRON_SECRET and PRODUCTION_URL (e.g. https://the-study-architect.vercel.app). Without these, closed-app alarms will not fire."
+            exit 1
           fi
           curl -fsS \
             -H "Authorization: Bearer ${CRON_SECRET}" \
