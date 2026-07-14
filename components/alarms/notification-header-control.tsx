@@ -241,7 +241,7 @@ export function NotificationHeaderControl() {
       if (push.ok) {
         setTestSent(true);
         setTestMessage(
-          "Test system notification sent. Close TSA fully — you should still see the OS alert (not the custom chime).",
+          "Push sent. Swipe TSA away now (do not force-stop Chrome). You should get a system notification in a few seconds.",
         );
       } else {
         setTestSent(localOk);

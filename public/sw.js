@@ -1,44 +1,19 @@
-/* Firebase Cloud Messaging must initialize in this worker for closed-app push. */
+/* Firebase Cloud Messaging — init messaging so tokens stay valid.
+ * Display is handled in the `push` listener below so a missing alarmId
+ * never suppresses the OS notification when the PWA is closed. */
 try {
   importScripts("/firebase-messaging-config.js");
   importScripts("https://www.gstatic.com/firebasejs/12.12.1/firebase-app-compat.js");
   importScripts("https://www.gstatic.com/firebasejs/12.12.1/firebase-messaging-compat.js");
   if (self.firebase && self.__FIREBASE_CONFIG__?.projectId && self.__FIREBASE_CONFIG__?.apiKey) {
     self.firebase.initializeApp(self.__FIREBASE_CONFIG__);
-    const messaging = self.firebase.messaging();
-    messaging.onBackgroundMessage((payload) => {
-      const data = payload?.data || {};
-      const alarmId = data.alarmId;
-      const fireAt = data.fireAt;
-      if (!alarmId || !fireAt) {
-        return;
-      }
-      const key = data.alarmKey || `${alarmId}:${fireAt}`;
-      if (firedAlarmKeys.has(key) || ringingAlarmKeys.has(key)) {
-        return;
-      }
-      const alarm = {
-        id: alarmId,
-        fireAt,
-        title: data.title || payload?.notification?.title || "Reminder",
-        body: data.body || payload?.notification?.body || "",
-        href: data.href || "/dashboard",
-      };
-      return showAlarmNotification(alarm, key).then((shown) => {
-        if (!shown) {
-          return;
-        }
-        firedAlarmKeys.add(key);
-        ringingAlarmKeys.add(key);
-        return persistAlarmState();
-      });
-    });
+    self.firebase.messaging();
   }
 } catch (error) {
   console.warn("[tsa-sw] FCM init skipped:", error);
 }
 
-const CACHE_NAME = "tsa-v18";
+const CACHE_NAME = "tsa-v19";
 const PRECACHE_URLS = ["/logo-mark.png", "/logo-512.png", "/offline.html", "/sounds/clock-chime.mp3"];
 const ALARM_DB_NAME = "tsa-alarms-v1";
 const ALARM_STORE = "meta";
@@ -640,44 +615,71 @@ self.addEventListener("notificationclose", (event) => {
 self.addEventListener("push", (event) => {
   event.waitUntil(
     (async () => {
-      await hydrateAlarmState();
-      // Always honor server pushes — local SW flag can be stale after PWA kill.
+      try {
+        await hydrateAlarmState();
+      } catch {
+        // Still try to show the notification.
+      }
       await handlePushEvent(event);
     })(),
   );
 });
 
 /**
+ * Always show an OS notification for closed-app delivery.
+ * Never return early without showNotification — that can silence FCM entirely.
  * @param {PushEvent} event
  */
 async function handlePushEvent(event) {
   /** @type {Record<string, string>} */
   let data = {};
+  /** @type {{ title?: string; body?: string } | null} */
+  let notification = null;
   try {
     const payload = event.data ? event.data.json() : {};
     if (payload && typeof payload === "object") {
+      if (payload.notification && typeof payload.notification === "object") {
+        notification = payload.notification;
+      }
       const nested = payload.data;
-      data =
-        nested && typeof nested === "object"
-          ? Object.fromEntries(
-              Object.entries(nested).map(([key, value]) => [key, String(value ?? "")]),
-            )
-          : Object.fromEntries(
-              Object.entries(payload).map(([key, value]) => [key, String(value ?? "")]),
-            );
+      if (nested && typeof nested === "object") {
+        data = Object.fromEntries(
+          Object.entries(nested).map(([key, value]) => [key, String(value ?? "")]),
+        );
+      } else {
+        data = Object.fromEntries(
+          Object.entries(payload)
+            .filter(([key]) => key !== "notification" && key !== "from" && key !== "fcmMessageId")
+            .map(([key, value]) => [key, String(value ?? "")]),
+        );
+      }
     }
   } catch {
-    return;
+    // Fall through and show a generic alert so the push is never silent.
   }
 
-  const alarmId = data.alarmId;
-  const fireAt = data.fireAt;
-  if (!alarmId || !fireAt) {
-    return;
-  }
-
+  const alarmId = data.alarmId || "push";
+  const fireAt = data.fireAt || new Date().toISOString();
   const key = data.alarmKey || `${alarmId}:${fireAt}`;
+  const title = data.title || notification?.title || "Reminder";
+  const body = data.body || notification?.body || "You have a study reminder.";
+  const href = data.href || "/dashboard";
+
   if (firedAlarmKeys.has(key) || ringingAlarmKeys.has(key)) {
+    // Refresh the same tag so the tray entry stays visible.
+    try {
+      await self.registration.showNotification(title, {
+        body: `${body}\n\nTap or swipe away to turn off.`,
+        tag: key,
+        icon: "/logo-mark.png",
+        badge: "/logo-mark.png",
+        silent: false,
+        requireInteraction: true,
+        data: { alarmId, fireAt, alarmKey: key, title, body, href },
+      });
+    } catch {
+      // Ignore.
+    }
     return;
   }
 
@@ -685,15 +687,32 @@ async function handlePushEvent(event) {
   const alarm = {
     id: alarmId,
     fireAt,
-    title: data.title || "Reminder",
-    body: data.body || "",
-    href: data.href || "/dashboard",
+    title,
+    body,
+    href,
   };
 
-  // Bypass local notificationsEnabled — FCM means the server already decided to alert.
-  const shown = await showAlarmNotification(alarm, key);
+  let shown = false;
+  try {
+    shown = await showAlarmNotification(alarm, key);
+  } catch {
+    shown = false;
+  }
   if (!shown) {
-    return;
+    try {
+      await self.registration.showNotification(title, {
+        body,
+        tag: key,
+        icon: "/logo-mark.png",
+        silent: false,
+        requireInteraction: true,
+        data: { alarmId, fireAt, alarmKey: key, title, body, href },
+      });
+      shown = true;
+    } catch (error) {
+      console.warn("[tsa-sw] showNotification failed:", error);
+      return;
+    }
   }
 
   firedAlarmKeys.add(key);
@@ -706,7 +725,11 @@ async function handlePushEvent(event) {
     href: alarm.href || "/dashboard",
     seenAt: Date.now(),
   };
-  await persistAlarmState();
+  try {
+    await persistAlarmState();
+  } catch {
+    // Non-fatal.
+  }
 
   const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
   for (const client of clients) {
