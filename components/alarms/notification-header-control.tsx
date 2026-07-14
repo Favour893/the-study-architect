@@ -19,7 +19,7 @@ import {
 } from "@/lib/alarms/notifications";
 import { useAuth } from "@/providers/auth-provider";
 import { syncAlarmDispatch, saveAlarmDispatchMeta, reenableAlarmJobs } from "@/lib/data/alarm-dispatch";
-import { requestTestPush } from "@/lib/alarms/server-dispatch";
+import { requestTestPush, requestDeliverDueAlerts } from "@/lib/alarms/server-dispatch";
 import { getClientAuth } from "@/lib/firebase/auth";
 
 function isIosDevice() {
@@ -241,7 +241,7 @@ export function NotificationHeaderControl() {
       if (push.ok) {
         setTestSent(true);
         setTestMessage(
-          "Background push sent. Close TSA (or lock the phone) — you should get a system alert with the phone’s notification sound.",
+          "Test system notification sent. Close TSA fully — you should still see the OS alert (not the custom chime).",
         );
       } else {
         setTestSent(localOk);
@@ -252,6 +252,40 @@ export function NotificationHeaderControl() {
               : `Background push failed: ${push.error || "unknown"}. Local chime still played.`),
         );
       }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deliverDueNow() {
+    setBusy(true);
+    setTestSent(false);
+    setTestMessage(null);
+    try {
+      await syncPushRegistration(true);
+      const firebaseUser = getClientAuth().currentUser;
+      if (!firebaseUser) {
+        setTestMessage("Sign in again to deliver due notifications.");
+        return;
+      }
+      const idToken = await firebaseUser.getIdToken();
+      const result = await requestDeliverDueAlerts(idToken);
+      if (!result.ok) {
+        setTestMessage(`Could not deliver due alerts: ${result.error || "unknown"}.`);
+        return;
+      }
+      const sent = result.sent ?? 0;
+      const due = result.due ?? 0;
+      const err = result.errors?.[0];
+      setTestSent(sent > 0);
+      setTestMessage(
+        sent > 0
+          ? `Sent ${sent} system notification(s) for due reminders. Check your notification tray (custom chime only plays while TSA is open).`
+          : due === 0
+            ? `No due reminders to send yet (${result.waiting ?? 0} still waiting).`
+            : `Found ${due} due job(s) but sent 0.${err ? ` ${err}` : " Check Vercel/Firebase push credentials."}`,
+      );
+      setPendingJobs((prev) => (typeof prev === "number" ? Math.max(0, prev - sent) : prev));
     } finally {
       setBusy(false);
     }
@@ -372,7 +406,7 @@ export function NotificationHeaderControl() {
                 <p className="text-sm font-medium text-app-fg">Notification details</p>
                 <p className="mt-0.5 text-xs text-app-subtle">
                   {appEnabled
-                    ? "When closed, your phone shows a system alert. Custom chimes play while TSA is open."
+                    ? "Closed-app goal: system notifications on your phone. Custom chime only while TSA is open."
                     : "Alarms are paused on this device. Use the On/Off toggle to resume."}
                 </p>
               </div>
@@ -396,15 +430,15 @@ export function NotificationHeaderControl() {
                 ) : null}
                 {appEnabled && dispatcherActive === false ? (
                   <p className="text-xs text-amber-700 dark:text-amber-300">
-                    Closed-app dispatcher is not running. Set a 1-minute cron (e.g. cron-job.org) to GET
-                    https://the-study-architect.vercel.app/api/cron/dispatch-alarms with header
-                    Authorization: Bearer &lt;CRON_SECRET from Vercel&gt;.
+                    Server dispatcher idle — closed-app notifications will not arrive at fire time until cron
+                    successfully hits the API every 1–5 minutes. In cron-job.org, open the job history: you
+                    need HTTP 200 and JSON with &quot;ok&quot;:true (not 401).
                     {pendingJobs !== null ? ` ${pendingJobs} pending job(s) waiting.` : ""}
                   </p>
                 ) : null}
                 {appEnabled && dispatcherActive === true ? (
                   <p className="text-xs text-emerald-700 dark:text-emerald-300">
-                    Closed-app dispatcher is active.
+                    Closed-app dispatcher is active — due reminders are pushed as system notifications.
                     {pendingJobs !== null ? ` ${pendingJobs} pending job(s).` : ""}
                   </p>
                 ) : null}
@@ -436,8 +470,17 @@ export function NotificationHeaderControl() {
                     type="button"
                     loading={busy}
                     loadingLabel="Sending…"
+                    onClick={() => void deliverDueNow()}
+                    className="mt-3 w-full rounded-lg border border-app-accent/40 bg-app-accent-soft px-3 py-1.5 text-xs font-medium text-app-fg hover:bg-app-muted disabled:opacity-60"
+                  >
+                    Deliver due notifications now
+                  </ShimmerButton>
+                  <ShimmerButton
+                    type="button"
+                    loading={busy}
+                    loadingLabel="Sending…"
                     onClick={() => void sendTest()}
-                    className="mt-3 w-full rounded-lg border border-app-border bg-panel px-3 py-1.5 text-xs font-medium text-app-fg hover:bg-app-muted disabled:opacity-60"
+                    className="mt-2 w-full rounded-lg border border-app-border bg-panel px-3 py-1.5 text-xs font-medium text-app-fg hover:bg-app-muted disabled:opacity-60"
                   >
                     Send background push test
                   </ShimmerButton>

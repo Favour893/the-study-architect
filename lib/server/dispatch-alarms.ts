@@ -19,8 +19,9 @@ function isDue(fireAt: string, nowIso: string) {
   if (Number.isNaN(fireMs) || Number.isNaN(nowMs)) {
     return fireAt <= nowIso;
   }
-  // Allow a small clock skew window.
-  return fireMs <= nowMs + 15_000;
+  // Send up to 3 minutes early so a 1–5 minute cron still delivers a system
+  // notification near the intended time (custom chime is separate / in-app only).
+  return fireMs <= nowMs + 180_000;
 }
 
 function appOrigin() {
@@ -212,6 +213,10 @@ export async function dispatchDueAlarmJobs(nowIso = new Date().toISOString()) {
 
 export async function dispatchDueAlarmJobsForUser(uid: string, nowIso = new Date().toISOString()) {
   const db = getAdminDb();
-  const snapshot = await db.collection(`users/${uid}/alarmJobs`).where("fired", "==", false).limit(50).get();
+  const snapshot = await db
+    .collection(`users/${uid}/alarmJobs`)
+    .where("fired", "==", false)
+    .limit(100)
+    .get();
   return dispatchJobDocs(snapshot.docs, nowIso);
 }
